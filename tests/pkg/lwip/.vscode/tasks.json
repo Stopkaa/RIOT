@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "cd ${workspaceFolder} && BOARD=samr21-xpro PORT=/dev/ttyACM1 make",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "flash",
+            "type": "shell",
+            "command": "cd ${workspaceFolder} && BOARD=samr21-xpro PORT=/dev/ttyACM1 make flash",
+            "problemMatcher": []
+        }
+    ]
+}

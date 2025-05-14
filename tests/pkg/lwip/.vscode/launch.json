@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "RIOT External Debug",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "external",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/bin/samr21-xpro/tests_lwip.elf",
+            "gdbTarget": "localhost:3333",
+            "runToEntryPoint": "main",
+            "preLaunchCommands": [
+                "monitor reset halt"
+            ],
+            "postLaunchCommands": [
+                "break main",
+                "continue"
+            ]
+        }
+    ]
+}

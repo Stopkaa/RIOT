@@ -1,0 +1,12 @@
+CompileFlags:
+  Add: [
+    "-I{PROJECT_DIR}/core/include",
+    "-I{PROJECT_DIR}/sys/include",
+    "-I{PROJECT_DIR}/drivers/include",
+    "-I{PROJECT_DIR}/cpu/native/include",
+    "-DRIOT_VERSION=\"RIOT\"",
+    "-DMODULE_AUTO_INIT",
+    "-DMODULE_BOARD",
+    "-DMODULE_CORE",
+    "-std=c99"
+  ]
