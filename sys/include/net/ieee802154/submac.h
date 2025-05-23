@@ -81,7 +81,6 @@
  * RX_DONE       | X  | X*    | X*      | X* | X
  * CRC_ERROR     | X  | X*    | X*      | X* | X
  * ACK_TIMEOUT   | -  | -     | -       | -  | X
- * BH            | -  | -     | X       | -  | -
  * REQ_TX        | X  | X     | -       | -  | -
  * REQ_SET_RX_ON | -  | X     | -       | -  | -
  * REQ_SET_IDLE  | X  | -     | -       | -  | -
@@ -98,7 +97,6 @@
  * - @ref ieee802154_submac_cb_t::tx_done.
  * - @ref ieee802154_submac_ack_timer_set
  * - @ref ieee802154_submac_ack_timer_cancel
- * - @ref ieee802154_submac_bh_request
  *
  * @{
  *
@@ -106,23 +104,23 @@
  */
  #ifndef NET_IEEE802154_SUBMAC_H
  #define NET_IEEE802154_SUBMAC_H
- 
+
  #ifdef __cplusplus
  extern "C" {
  #endif
- 
+
  #include <stdio.h>
  #include <string.h>
  #include "assert.h"
- 
+
  #include "net/ieee802154.h"
  #include "net/ieee802154/radio.h"
- 
+
  /**
   * @brief IEEE 802.15.4 SubMAC forward declaration
   */
  typedef struct ieee802154_submac ieee802154_submac_t;
- 
+
  /**
   * @brief IEEE 802.15.4 SubMAC callbacks.
   */
@@ -156,7 +154,7 @@
      void (*tx_done)(ieee802154_submac_t *submac, int status,
                      ieee802154_tx_info_t *info);
  } ieee802154_submac_cb_t;
- 
+
  /**
   * @brief Internal SubMAC FSM state machine events
   */
@@ -167,13 +165,12 @@
      IEEE802154_FSM_EV_RX_DONE,              /**< Radio reports frame was received */
      IEEE802154_FSM_EV_CRC_ERROR,            /**< Radio reports frame was received but CRC failed */
      IEEE802154_FSM_EV_ACK_TIMEOUT,          /**< ACK timer fired */
-     IEEE802154_FSM_EV_BH,                   /**< The Bottom Half should process an event */
      IEEE802154_FSM_EV_REQUEST_TX,           /**< The upper layer requested to transmit a frame */
      IEEE802154_FSM_EV_REQUEST_SET_RX_ON,    /**< The upper layer requested to go to RX */
      IEEE802154_FSM_EV_REQUEST_SET_IDLE,     /**< The upper layer requested to go to IDLE */
      IEEE802154_FSM_EV_NUMOF,                /**< Number of SubMAC FSM events */
  } ieee802154_fsm_ev_t;
- 
+
  /**
   * @brief submac FSM process Event return status
   */
@@ -182,12 +179,12 @@
      IEEE802154_SUBMAC_FSM_RETURN_TRANSITION,
      IEEE802154_SUBMAC_FSM_RETURN_IGNORED,
  } ieee802154_submac_fsm_return_status;
- 
+
  /**
   * @brief Internal SubMAC FSM state machine state
   */
  typedef ieee802154_submac_fsm_return_status (*ieee802154_fsm_state_t)(ieee802154_submac_t *submac, ieee802154_fsm_ev_t ev);
- 
+
  /**
   * @brief IEEE 802.15.4 SubMAC descriptor
   */
@@ -212,7 +209,7 @@
      ieee802154_phy_mode_t phy_mode;     /**< IEEE 802.15.4 PHY mode */
      const iolist_t *psdu;               /**< stores the current PSDU */
  };
- 
+
  /**
   * @brief Transmit an IEEE 802.15.4 PSDU
   *
@@ -229,7 +226,7 @@
   *         @ref ieee802154_submac_cb_t::tx_done
   */
  int ieee802154_send(ieee802154_submac_t *submac, const iolist_t *iolist);
- 
+
  /**
   * @brief Set the IEEE 802.15.4 short address
   *
@@ -245,14 +242,14 @@
      int res = ieee802154_radio_config_addr_filter(&submac->dev,
                                                    IEEE802154_AF_SHORT_ADDR,
                                                    short_addr);
- 
+
      if (res >= 0) {
          memcpy(&submac->short_addr, short_addr, IEEE802154_SHORT_ADDRESS_LEN);
      }
- 
+
      return res;
  }
- 
+
  /**
   * @brief Set the IEEE 802.15.4 extended address
   *
@@ -268,13 +265,13 @@
      int res = ieee802154_radio_config_addr_filter(&submac->dev,
                                                    IEEE802154_AF_EXT_ADDR,
                                                    ext_addr);
- 
+
      if (res >= 0) {
          memcpy(&submac->ext_addr, ext_addr, IEEE802154_LONG_ADDRESS_LEN);
      }
      return res;
  }
- 
+
  /**
   * @brief Set the IEEE 802.15.4 PAN ID
   *
@@ -290,14 +287,14 @@
      int res = ieee802154_radio_config_addr_filter(&submac->dev,
                                                    IEEE802154_AF_PANID,
                                                    panid);
- 
+
      if (res >= 0) {
          submac->panid = *panid;
      }
- 
+
      return res;
  }
- 
+
  /**
   * @brief Get IEEE 802.15.4 PHY mode
   *
@@ -310,7 +307,7 @@
  {
      return submac->phy_mode;
  }
- 
+
  /**
   * @brief Set IEEE 802.15.4 PHY configuration (channel, TX power)
   *
@@ -325,7 +322,7 @@
   * @return negative errno on error
   */
  int ieee802154_set_phy_conf(ieee802154_submac_t *submac, const ieee802154_phy_conf_t *conf);
- 
+
  /**
   * @brief Set IEEE 802.15.4 channel number
   *
@@ -350,10 +347,10 @@
          .page = submac->channel_page,
          .pow = submac->tx_pow,
      };
- 
+
      return ieee802154_set_phy_conf(submac, &conf);
  }
- 
+
  /**
   * @brief Set IEEE 802.15.4 channel page
   *
@@ -378,10 +375,10 @@
          .page = channel_page,
          .pow = submac->tx_pow,
      };
- 
+
      return ieee802154_set_phy_conf(submac, &conf);
  }
- 
+
  /**
   * @brief Set IEEE 802.15.4 transmission power
   *
@@ -406,10 +403,10 @@
          .page = submac->channel_page,
          .pow = tx_pow,
      };
- 
+
      return ieee802154_set_phy_conf(submac, &conf);
  }
- 
+
  /**
   * @brief Get the received frame length
   *
@@ -424,7 +421,7 @@
  {
      return ieee802154_radio_len(&submac->dev);
  }
- 
+
  /**
   * @brief Read the received frame
   *
@@ -446,7 +443,7 @@
  {
      return ieee802154_radio_read(&submac->dev, buf, len, info);
  }
- 
+
  /**
   * @brief Set the SubMAC to IDLE state.
   *
@@ -460,7 +457,7 @@
   * @retval -EBUSY if the SubMAC is currently busy
   */
  int ieee802154_set_idle(ieee802154_submac_t *submac);
- 
+
  /**
   * @brief Set the SubMAC to RX state
   *
@@ -473,7 +470,7 @@
   * @retval -EBUSY if the SubMAC is currently busy
   */
  int ieee802154_set_rx(ieee802154_submac_t *submac);
- 
+
  /**
   * @brief Check whether the SubMAC is in RX state
   *
@@ -483,7 +480,7 @@
   * @retval false otherwise
   */
  bool ieee802154_submac_state_is_rx(ieee802154_submac_t *submac);
- 
+
  /**
   * @brief Check whether the SubMAC is in IDLE state
   *
@@ -493,7 +490,7 @@
   * @retval false otherwise
   */
  bool ieee802154_submac_state_is_idle(ieee802154_submac_t *submac);
- 
+
  /**
   * @brief Init the IEEE 802.15.4 SubMAC
   *
@@ -508,7 +505,7 @@
   */
  int ieee802154_submac_init(ieee802154_submac_t *submac, const network_uint16_t *short_addr,
                             const eui64_t *ext_addr);
- 
+
  /**
   * @brief Set the ACK timeout timer
   *
@@ -517,7 +514,7 @@
   * @param[in] submac pointer to the SubMAC descriptor
   */
  extern void ieee802154_submac_ack_timer_set(ieee802154_submac_t *submac);
- 
+
  /**
   * @brief Cancel the ACK timeout timer
   *
@@ -526,16 +523,7 @@
   * @param[in] submac pointer to the SubMAC descriptor
   */
  extern void ieee802154_submac_ack_timer_cancel(ieee802154_submac_t *submac);
- 
- /**
-  * @brief @ref ieee802154_submac_bh_process should be called as soon as possible.
-  *
-  * @note This function should be implemented by the user of the SubMAC.
-  *
-  * @param[in] submac pointer to the SubMAC descriptor
-  */
- extern void ieee802154_submac_bh_request(ieee802154_submac_t *submac);
- 
+
  /**
   * @brief Process an FSM event
   *
@@ -548,7 +536,7 @@
   */
  ieee802154_fsm_state_t ieee802154_submac_process_ev(ieee802154_submac_t *submac,
                                                      ieee802154_fsm_ev_t ev);
- 
+
  /**
   * @brief Indicate the SubMAC that the ACK timeout fired.
   *
@@ -564,7 +552,7 @@
  {
      ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_ACK_TIMEOUT);
  }
- 
+
  /**
   * @brief Indicate the SubMAC that the device received a frame.
   *
@@ -574,7 +562,7 @@
  {
      ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_RX_DONE);
  }
- 
+
  /**
   * @brief Indicate the SubMAC that a frame with invalid CRC was received.
   *
@@ -584,7 +572,7 @@
  {
      ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_CRC_ERROR);
  }
- 
+
  /**
   * @brief Indicate the SubMAC that the device finished the transmission procedure.
   *
@@ -594,10 +582,10 @@
  {
      ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_TX_DONE);
  }
- 
+
  #ifdef __cplusplus
  }
  #endif
- 
+
  #endif /* NET_IEEE802154_SUBMAC_H */
  /** @} */
