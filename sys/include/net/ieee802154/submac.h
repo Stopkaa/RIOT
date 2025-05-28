@@ -172,18 +172,27 @@
  } ieee802154_fsm_ev_t;
 
  /**
-  * @brief submac FSM process Event return status
+  * @brief Internal SubMAC FSM process Event return status
   */
   typedef enum {
-     IEEE802154_SUBMAC_FSM_RETURN_HANDLED,
-     IEEE802154_SUBMAC_FSM_RETURN_TRANSITION,
-     IEEE802154_SUBMAC_FSM_RETURN_IGNORED,
+     IEEE802154_SUBMAC_FSM_RETURN_HANDLED,      /**< Event was handled */
+     IEEE802154_SUBMAC_FSM_RETURN_TRANSITION,   /**< Event has caused a transition */
+     IEEE802154_SUBMAC_FSM_RETURN_IGNORED,      /**< Event was ignored, no action was proceeded */
+     IEEE802154_SUBMAC_FSM_RETURN_BUSY,         /**< Event shouldn't be processed at that time */
  } ieee802154_submac_fsm_return_status;
 
  /**
-  * @brief Internal SubMAC FSM state machine state
+  * @brief Internal SubMAC FSM state
   */
  typedef ieee802154_submac_fsm_return_status (*ieee802154_fsm_state_t)(ieee802154_submac_t *submac, ieee802154_fsm_ev_t ev);
+
+/**
+ * @brief Internal SubMAC FSM
+ */
+typedef struct {
+    ieee802154_fsm_state_t fsm_state;       /**< current state of the SubMAC FSM */
+    int busy_status;                    /**< flag if the SubMAC is in use or not */
+} ieee802154_fsm_t;
 
  /**
   * @brief IEEE 802.15.4 SubMAC descriptor
@@ -205,7 +214,7 @@
      uint8_t backoff_mask;               /**< internal value used for random backoff calculation */
      uint8_t csma_retries;               /**< maximum number of CSMA-CA retries */
      int8_t tx_pow;                      /**< Transmission power (in dBm) */
-     ieee802154_fsm_state_t fsm_state;    /**< State of the SubMAC */
+     ieee802154_fsm_t fsm;               /**< FSM of the SubMAC */
      ieee802154_phy_mode_t phy_mode;     /**< IEEE 802.15.4 PHY mode */
      const iolist_t *psdu;               /**< stores the current PSDU */
  };
@@ -534,7 +543,7 @@
   *
   * @return  Next FSM event
   */
- ieee802154_fsm_state_t ieee802154_submac_process_ev(ieee802154_submac_t *submac,
+ int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
                                                      ieee802154_fsm_ev_t ev);
 
  /**

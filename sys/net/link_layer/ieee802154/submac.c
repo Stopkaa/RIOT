@@ -14,6 +14,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include "net/ieee802154/submac.h"
@@ -23,8 +24,9 @@
 #include "luid.h"
 #include "kernel_defines.h"
 #include "errno.h"
+#include <sys/errno.h>
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #include "debug.h"
 
 #define CSMA_SENDER_BACKOFF_PERIOD_UNIT_US (320U)
@@ -74,9 +76,9 @@ static const char *get_state_name(ieee802154_fsm_state_t state)
     return "UNKNOWN";
 }
 
-static ieee802154_submac_fsm_return_status _state_transition(ieee802154_fsm_state_t *current_state, ieee802154_fsm_state_t new_state)
+static ieee802154_submac_fsm_return_status _state_transition(ieee802154_fsm_t *fsm, ieee802154_fsm_state_t new_state)
 {
-    *current_state = new_state;
+    fsm->fsm_state = new_state;
     return IEEE802154_SUBMAC_FSM_RETURN_TRANSITION;
 }
 
@@ -111,7 +113,7 @@ static ieee802154_submac_fsm_return_status _tx_end(ieee802154_submac_t *submac, 
 
     assert(res >= 0);
     submac->cb->tx_done(submac, status, info);
-    return _state_transition(&submac->fsm_state, _fsm_state_idle);
+    return _state_transition(&submac->fsm, _fsm_state_idle);
 }
 
 static void _print_debug(ieee802154_fsm_state_t old, ieee802154_fsm_state_t new,
@@ -144,7 +146,7 @@ static ieee802154_submac_fsm_return_status _handle_tx_no_ack(ieee802154_submac_t
         submac->retrans++;
         res = ieee802154_radio_set_idle(&submac->dev, true);
         assert(res >= 0);
-        return _state_transition(&submac->fsm_state, _fsm_state_prepare);
+        return _state_transition(&submac->fsm, _fsm_state_prepare);
     }
     else {
         ieee802154_radio_set_frame_filter_mode(&submac->dev, IEEE802154_FILTER_ACCEPT);
@@ -165,7 +167,7 @@ static int _handle_fsm_ev_request_tx(ieee802154_submac_t *submac)
     else {
         /* write frame to radio */
         ieee802154_radio_write(dev, submac->psdu);
-        _state_transition(&submac->fsm_state, _fsm_state_prepare);
+        _state_transition(&submac->fsm, _fsm_state_prepare);
         return 0;
     }
 }
@@ -186,14 +188,14 @@ static ieee802154_submac_fsm_return_status _fsm_state_rx(ieee802154_submac_t *su
         if (_handle_fsm_ev_request_tx(submac) < 0) {
             return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
         }
-        return _state_transition(&submac->fsm_state, _fsm_state_prepare);
+        return _state_transition(&submac->fsm, _fsm_state_prepare);
     case IEEE802154_FSM_EV_RX_DONE:
         /* Make sure it's not an ACK frame */
         while (ieee802154_radio_set_idle(&submac->dev, false) < 0) {
         }
         if (ieee802154_radio_len(&submac->dev) > (int)IEEE802154_MIN_FRAME_LEN) {
             submac->cb->rx_done(submac);
-            return _state_transition(&submac->fsm_state, _fsm_state_idle);
+            return _state_transition(&submac->fsm, _fsm_state_idle);
         }
         else {
             ieee802154_radio_read(&submac->dev, NULL, 0, NULL);
@@ -223,12 +225,12 @@ static ieee802154_submac_fsm_return_status _fsm_state_rx(ieee802154_submac_t *su
         }
         while (ieee802154_radio_confirm_set_idle(dev) == -EAGAIN) {
         }
-        return _state_transition(&submac->fsm_state, _fsm_state_idle);
+        return _state_transition(&submac->fsm, _fsm_state_idle);
 
     default:
         break;
     }
-    return _state_transition(&submac->fsm_state, _fsm_state_invalid);
+    return _state_transition(&submac->fsm, _fsm_state_invalid);
 }
 
 static ieee802154_submac_fsm_return_status _fsm_state_idle(ieee802154_submac_t *submac, ieee802154_fsm_ev_t ev)
@@ -243,14 +245,14 @@ static ieee802154_submac_fsm_return_status _fsm_state_idle(ieee802154_submac_t *
         if (_handle_fsm_ev_request_tx(submac) < 0) {
             return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
         }
-        return _state_transition(&submac->fsm_state, _fsm_state_prepare);
+        return _state_transition(&submac->fsm, _fsm_state_prepare);
     case IEEE802154_FSM_EV_REQUEST_SET_RX_ON:
         /* Try to go turn on the transceiver */
         if ((ieee802154_radio_set_rx(dev) < 0)) {
             /* Keep on current state */
             return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
         }
-        return _state_transition(&submac->fsm_state, _fsm_state_rx);
+        return _state_transition(&submac->fsm, _fsm_state_rx);
     case IEEE802154_FSM_EV_RX_DONE:
     case IEEE802154_FSM_EV_CRC_ERROR:
         /* This might happen in case there's a race condition between ACK_TIMEOUT
@@ -262,7 +264,7 @@ static ieee802154_submac_fsm_return_status _fsm_state_idle(ieee802154_submac_t *
     default:
         break;
     }
-    return _state_transition(&submac->fsm_state, _fsm_state_invalid);
+    return _state_transition(&submac->fsm, _fsm_state_invalid);
 }
 
 
@@ -286,7 +288,7 @@ static ieee802154_submac_fsm_return_status _fsm_state_prepare(ieee802154_submac_
             }
         }
         while (ieee802154_radio_request_transmit(dev) == -EBUSY) {}
-        return _state_transition(&submac->fsm_state, _fsm_state_tx);
+        return _state_transition(&submac->fsm, _fsm_state_tx);
     case IEEE802154_FSM_EV_EXIT:
         return IEEE802154_SUBMAC_FSM_RETURN_IGNORED;
     case IEEE802154_FSM_EV_RX_DONE:
@@ -297,10 +299,12 @@ static ieee802154_submac_fsm_return_status _fsm_state_prepare(ieee802154_submac_
           */
         ieee802154_radio_read(&submac->dev, NULL, 0, NULL);
         return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
+    case IEEE802154_FSM_EV_REQUEST_TX:
+        return IEEE802154_SUBMAC_FSM_RETURN_BUSY;
     default:
         break;
     }
-    return _state_transition(&submac->fsm_state, _fsm_state_invalid);
+    return _state_transition(&submac->fsm, _fsm_state_invalid);
 }
 
 static ieee802154_submac_fsm_return_status _fsm_state_tx_process_tx_done(ieee802154_submac_t *submac,
@@ -332,7 +336,7 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx_process_tx_done(ieee802
 
             /* Handle ACK reception */
             ieee802154_submac_ack_timer_set(submac);
-            return _state_transition(&submac->fsm_state, _fsm_state_wait_for_ack);
+            return _state_transition(&submac->fsm, _fsm_state_wait_for_ack);
         }
         break;
     case TX_STATUS_NO_ACK:
@@ -353,10 +357,10 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx_process_tx_done(ieee802
               * in the current state, since the radio is still in TX_ON.
               * Therefore, this is valid */
             //ieee802154_submac_bh_request(submac);
-            return _state_transition(&submac->fsm_state, _fsm_state_prepare);
+            return _state_transition(&submac->fsm, _fsm_state_prepare);
         }
     }
-    return _state_transition(&submac->fsm_state, _fsm_state_invalid);
+    return _state_transition(&submac->fsm, _fsm_state_invalid);
 }
 
 static ieee802154_submac_fsm_return_status _fsm_state_tx(ieee802154_submac_t *submac, ieee802154_fsm_ev_t ev)
@@ -383,10 +387,12 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx(ieee802154_submac_t *su
           */
         ieee802154_radio_read(&submac->dev, NULL, 0, NULL);
         return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
+    case IEEE802154_FSM_EV_REQUEST_TX:
+        return IEEE802154_SUBMAC_FSM_RETURN_BUSY;
     default:
         break;
     }
-    return _state_transition(&submac->fsm_state, _fsm_state_invalid);
+    return _state_transition(&submac->fsm, _fsm_state_invalid);
 }
 
 static ieee802154_submac_fsm_return_status _fsm_state_wait_for_ack(ieee802154_submac_t *submac,
@@ -417,44 +423,51 @@ static ieee802154_submac_fsm_return_status _fsm_state_wait_for_ack(ieee802154_su
         return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
     case IEEE802154_FSM_EV_ACK_TIMEOUT:
         return _handle_tx_no_ack(submac);
+    case IEEE802154_FSM_EV_REQUEST_TX:
+        return IEEE802154_SUBMAC_FSM_RETURN_BUSY;
     default:
         break;
     }
-    return _state_transition(&submac->fsm_state, _fsm_state_invalid);
+    return _state_transition(&submac->fsm, _fsm_state_invalid);
 }
 
-ieee802154_fsm_state_t ieee802154_submac_process_ev(ieee802154_submac_t *submac,
+int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
                                                     ieee802154_fsm_ev_t ev)
 {
-    ieee802154_fsm_state_t last_state = submac->fsm_state;
+    ieee802154_fsm_state_t last_state = submac->fsm.fsm_state;
     ieee802154_fsm_ev_t last_event = ev;
     ieee802154_submac_fsm_return_status res;
 
-    while ((res = (*submac->fsm_state)(submac, last_event)) == IEEE802154_SUBMAC_FSM_RETURN_TRANSITION) {
-        if (_fsm_state_invalid == submac->fsm_state) {
-            _print_debug(last_state, submac->fsm_state, ev);
+    /** TODO needs to be atomic or mutex */
+    int was_busy = submac->fsm.busy_status;
+    submac->fsm.busy_status = true;
+    if (was_busy) {
+        return -EBUSY;
+    }
+    while ((res = (*submac->fsm.fsm_state)(submac, last_event)) == IEEE802154_SUBMAC_FSM_RETURN_TRANSITION) {
+        if (_fsm_state_invalid == submac->fsm.fsm_state) {
+            _print_debug(last_state, submac->fsm.fsm_state, ev);
             assert(false);
         }
         res = (*last_state)(submac, IEEE802154_FSM_EV_EXIT);
         assert(res != IEEE802154_SUBMAC_FSM_RETURN_TRANSITION); //state shouldnt make a transition on exit event
-        last_state = submac->fsm_state;
+        last_state = submac->fsm.fsm_state;
         last_event = IEEE802154_FSM_EV_ENTRY;
     }
-    return submac->fsm_state;
+    submac->fsm.busy_status = false;
+    if (IEEE802154_SUBMAC_FSM_RETURN_BUSY == res) {
+        return -EBUSY;
+    }
+    return 0;
 }
 
 int ieee802154_send(ieee802154_submac_t *submac, const iolist_t *iolist)
 {
-    ieee802154_fsm_state_t current_state = submac->fsm_state;
-
-    if (current_state != _fsm_state_rx && current_state != _fsm_state_idle) {
-        return -EBUSY;
-    }
-
     if (iolist == NULL) {
         return 0;
     }
 
+    //is it okay to assign the submac without processing?
     uint8_t *buf = iolist->iol_base;
     bool cnf = buf[0] & IEEE802154_FCF_ACK_REQ;
 
@@ -463,11 +476,7 @@ int ieee802154_send(ieee802154_submac_t *submac, const iolist_t *iolist)
     submac->retrans = 0;
     submac->csma_retries_nb = 0;
     submac->backoff_mask = (1 << submac->be.min) - 1;
-    current_state = ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_TX);
-    if (current_state != _fsm_state_tx) {
-        return -EBUSY;
-    }
-    return 0;
+    return ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_TX);
 }
 
 /*
@@ -668,7 +677,7 @@ int ieee802154_submac_init(ieee802154_submac_t *submac, const network_uint16_t *
 {
     ieee802154_dev_t *dev = &submac->dev;
 
-    submac->fsm_state = _fsm_state_rx;
+    submac->fsm.fsm_state = _fsm_state_rx;
 
     int res;
 
@@ -786,7 +795,7 @@ int ieee802154_set_phy_conf(ieee802154_submac_t *submac, const ieee802154_phy_co
 {
     ieee802154_dev_t *dev = &submac->dev;
     int res;
-    ieee802154_fsm_state_t current_state = submac->fsm_state;
+    ieee802154_fsm_state_t current_state = submac->fsm.fsm_state;
 
     /* Changing state can be only performed on IDLE or RX state */
     if (current_state != _fsm_state_rx && current_state != _fsm_state_idle) {
@@ -824,16 +833,16 @@ int ieee802154_set_phy_conf(ieee802154_submac_t *submac, const ieee802154_phy_co
 
 int ieee802154_set_rx(ieee802154_submac_t *submac)
 {
-    ieee802154_fsm_state_t current_state = submac->fsm_state;
-    ieee802154_fsm_state_t next_state;
+    ieee802154_fsm_state_t current_state = submac->fsm.fsm_state;
     int res = -EBUSY;
 
     if (current_state == _fsm_state_rx) {
         res = -EALREADY;
     }
     else if (current_state == _fsm_state_idle) {
-        next_state = ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_RX_ON);
-        if (next_state == _fsm_state_rx) {
+
+        ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_RX_ON);
+        if (_fsm_state_rx == submac->fsm.fsm_state) {
             res = 0;
         }
     }
@@ -843,16 +852,15 @@ int ieee802154_set_rx(ieee802154_submac_t *submac)
 
 int ieee802154_set_idle(ieee802154_submac_t *submac)
 {
-    ieee802154_fsm_state_t current_state = submac->fsm_state;
-    ieee802154_fsm_state_t next_state;
+    ieee802154_fsm_state_t current_state = submac->fsm.fsm_state;
     int res = -EBUSY;
 
     if (current_state == _fsm_state_idle) {
         res = -EALREADY;
     }
     else if (current_state == _fsm_state_rx) {
-        next_state = ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_IDLE);
-        if (next_state == _fsm_state_idle) {
+        ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_IDLE);
+        if (_fsm_state_idle == submac->fsm.fsm_state) {
             res = 0;
         }
     }
@@ -861,12 +869,12 @@ int ieee802154_set_idle(ieee802154_submac_t *submac)
 
 bool ieee802154_submac_state_is_idle(ieee802154_submac_t *submac)
 {
-    return submac->fsm_state == &_fsm_state_idle;
+    return submac->fsm.fsm_state == _fsm_state_idle;
 }
 
 bool ieee802154_submac_state_is_rx(ieee802154_submac_t *submac)
 {
-    return submac->fsm_state == &_fsm_state_rx;
+    return submac->fsm.fsm_state == _fsm_state_rx;
 }
 
 /** @} */
