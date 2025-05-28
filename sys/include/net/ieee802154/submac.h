@@ -177,8 +177,9 @@
   typedef enum {
      IEEE802154_SUBMAC_FSM_RETURN_HANDLED,      /**< Event was handled */
      IEEE802154_SUBMAC_FSM_RETURN_TRANSITION,   /**< Event has caused a transition */
-     IEEE802154_SUBMAC_FSM_RETURN_IGNORED,      /**< Event was ignored, no action was proceeded */
+     IEEE802154_SUBMAC_FSM_RETURN_IGNORED,      /**< Event was ignored, no action was proceeded*/
      IEEE802154_SUBMAC_FSM_RETURN_BUSY,         /**< Event shouldn't be processed at that time */
+     IEEE802154_SUBMAC_FSM_RETURN_ALREADY,      /**< Event shouldn't be processed in this state*/
  } ieee802154_submac_fsm_return_status;
 
  /**

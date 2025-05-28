@@ -184,6 +184,8 @@ static ieee802154_submac_fsm_return_status _fsm_state_rx(ieee802154_submac_t *su
     case IEEE802154_FSM_EV_ENTRY:
     case IEEE802154_FSM_EV_EXIT:
         return IEEE802154_SUBMAC_FSM_RETURN_IGNORED;
+    case IEEE802154_FSM_EV_REQUEST_SET_RX_ON:
+        return IEEE802154_SUBMAC_FSM_RETURN_ALREADY;
     case IEEE802154_FSM_EV_REQUEST_TX:
         if (_handle_fsm_ev_request_tx(submac) < 0) {
             return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
@@ -291,6 +293,9 @@ static ieee802154_submac_fsm_return_status _fsm_state_prepare(ieee802154_submac_
         return _state_transition(&submac->fsm, _fsm_state_tx);
     case IEEE802154_FSM_EV_EXIT:
         return IEEE802154_SUBMAC_FSM_RETURN_IGNORED;
+
+    case IEEE802154_FSM_EV_REQUEST_SET_RX_ON:
+        return IEEE802154_SUBMAC_FSM_RETURN_BUSY;
     case IEEE802154_FSM_EV_RX_DONE:
     case IEEE802154_FSM_EV_CRC_ERROR:
         /* This might happen in case there's a race condition between ACK_TIMEOUT
@@ -388,6 +393,7 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx(ieee802154_submac_t *su
         ieee802154_radio_read(&submac->dev, NULL, 0, NULL);
         return IEEE802154_SUBMAC_FSM_RETURN_HANDLED;
     case IEEE802154_FSM_EV_REQUEST_TX:
+    case IEEE802154_FSM_EV_REQUEST_SET_RX_ON:
         return IEEE802154_SUBMAC_FSM_RETURN_BUSY;
     default:
         break;
@@ -424,6 +430,7 @@ static ieee802154_submac_fsm_return_status _fsm_state_wait_for_ack(ieee802154_su
     case IEEE802154_FSM_EV_ACK_TIMEOUT:
         return _handle_tx_no_ack(submac);
     case IEEE802154_FSM_EV_REQUEST_TX:
+    case IEEE802154_FSM_EV_REQUEST_SET_RX_ON:
         return IEEE802154_SUBMAC_FSM_RETURN_BUSY;
     default:
         break;
@@ -457,6 +464,9 @@ int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
     submac->fsm.busy_status = false;
     if (IEEE802154_SUBMAC_FSM_RETURN_BUSY == res) {
         return -EBUSY;
+    }
+    else if (IEEE802154_SUBMAC_FSM_RETURN_ALREADY == res) {
+        return -EALREADY;
     }
     return 0;
 }
@@ -833,21 +843,7 @@ int ieee802154_set_phy_conf(ieee802154_submac_t *submac, const ieee802154_phy_co
 
 int ieee802154_set_rx(ieee802154_submac_t *submac)
 {
-    ieee802154_fsm_state_t current_state = submac->fsm.fsm_state;
-    int res = -EBUSY;
-
-    if (current_state == _fsm_state_rx) {
-        res = -EALREADY;
-    }
-    else if (current_state == _fsm_state_idle) {
-
-        ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_RX_ON);
-        if (_fsm_state_rx == submac->fsm.fsm_state) {
-            res = 0;
-        }
-    }
-
-    return res;
+        return ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_RX_ON);
 }
 
 int ieee802154_set_idle(ieee802154_submac_t *submac)
