@@ -105,7 +105,8 @@
  #ifndef NET_IEEE802154_SUBMAC_H
  #define NET_IEEE802154_SUBMAC_H
 
- #ifdef __cplusplus
+ #include <stdint.h>
+#ifdef __cplusplus
  extern "C" {
  #endif
 
@@ -192,7 +193,7 @@
  */
 typedef struct {
     ieee802154_fsm_state_t fsm_state;       /**< current state of the SubMAC FSM */
-    int busy_status;                    /**< flag if the SubMAC is in use or not */
+    uint8_t busy_status;                    /**< flag if the SubMAC is in use or not */
 } ieee802154_fsm_t;
 
  /**

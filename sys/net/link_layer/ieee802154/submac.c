@@ -13,8 +13,10 @@
  * @author José I. Alamos <jose.alamos@haw-hamburg.de>
  */
 
+#include "net/ieee802154/radio.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "net/ieee802154/submac.h"
@@ -24,6 +26,7 @@
 #include "luid.h"
 #include "kernel_defines.h"
 #include "errno.h"
+#include "atomic_utils.h"
 #include <sys/errno.h>
 
 #define ENABLE_DEBUG 1
@@ -385,7 +388,10 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx(ieee802154_submac_t *su
         return IEEE802154_SUBMAC_FSM_RETURN_IGNORED;
     case IEEE802154_FSM_EV_TX_DONE:
         res = ieee802154_radio_confirm_transmit(&submac->dev, &info);
-        assert(res >= 0);
+        if (res < 0) {
+            ieee802154_radio_print_last_instructions(&submac->dev);
+            assert(res >= 0);
+        }
         return _fsm_state_tx_process_tx_done(submac, &info);
     case IEEE802154_FSM_EV_RX_DONE:
     case IEEE802154_FSM_EV_CRC_ERROR:
@@ -450,9 +456,7 @@ int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
     ieee802154_fsm_ev_t last_event = ev;
     ieee802154_submac_fsm_return_status res;
 
-    /** TODO needs to be atomic or mutex */
-    int was_busy = submac->fsm.busy_status;
-    submac->fsm.busy_status = true;
+    uint8_t was_busy =  atomic_fetch_or_u8(&submac->fsm.busy_status, true);
     if (was_busy) {
         return -EBUSY;
     }
@@ -482,7 +486,11 @@ int ieee802154_send(ieee802154_submac_t *submac, const iolist_t *iolist)
         return 0;
     }
 
-    //is it okay to assign the submac without processing?
+    uint8_t fsm_busy =  atomic_load_u8(&submac->fsm.busy_status);
+    if (fsm_busy) {
+        return -EBUSY;
+    }
+
     uint8_t *buf = iolist->iol_base;
     bool cnf = buf[0] & IEEE802154_FCF_ACK_REQ;
 
