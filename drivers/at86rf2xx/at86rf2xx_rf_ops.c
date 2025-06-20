@@ -24,8 +24,12 @@
 #include "macros/utils.h"
 #include "net/ieee802154/radio.h"
 #include "sched.h"
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "thread.h"
+#include "atomic_utils.h"
 #if IS_USED(MODULE_AT86RF2XX_AES_SPI)
 #include "at86rf2xx_aes.h"
 #endif
@@ -35,25 +39,40 @@
 
 static const ieee802154_radio_ops_t at86rf2xx_ops;
 static ieee802154_dev_t *at86rf2xx_periph;
-
+static uint8_t appending_irq;
 #define BUFFER_SIZE 20
 #define OP_NAME_LEN 128
 
+// Struktur für Operation-Einträge mit Thread-Informationen
+typedef struct {
+    char op_name[OP_NAME_LEN];
+    kernel_pid_t thread_id;
+    uint8_t thread_priority;
+} operation_entry_t;
+
 // Globaler Buffer und Counter
-static char cmd_buffer[BUFFER_SIZE][OP_NAME_LEN];
+static operation_entry_t cmd_buffer[BUFFER_SIZE];
 static int cmd_counter = 0;
 
-// Command hinzufügen
+// Command mit Thread-Info hinzufügen
 void add_operation(const char* op) {
     int index = cmd_counter % BUFFER_SIZE;
-    strncpy(cmd_buffer[index], op, OP_NAME_LEN - 1);
-    cmd_buffer[index][OP_NAME_LEN - 1] = '\0';
+    
+    // Operation Name kopieren
+    strncpy(cmd_buffer[index].op_name, op, OP_NAME_LEN - 1);
+    cmd_buffer[index].op_name[OP_NAME_LEN - 1] = '\0';
+    
+    // Thread-Informationen sammeln
+    thread_t *active_thread = thread_get_active();
+    cmd_buffer[index].thread_id = thread_getpid();
+    cmd_buffer[index].thread_priority = thread_get_priority(active_thread);
+    
     cmd_counter++;
 }
 
-// Buffer ausgeben
+// Buffer mit Thread-Informationen ausgeben
 void print_operations(void) {
-    printf("\n=== Command Buffer ===\n");
+    printf("\n=== Command Buffer with Thread Info ===\n");
     printf("Letzter Command: #%d\n", cmd_counter);
 
     int count = (cmd_counter < BUFFER_SIZE) ? cmd_counter : BUFFER_SIZE;
@@ -62,10 +81,17 @@ void print_operations(void) {
     for (int i = 0; i < count; i++) {
         int index = (start + i) % BUFFER_SIZE;
         int cmd_num = cmd_counter - count + i + 1;
-        printf("#%d: %s\n", cmd_num, cmd_buffer[index]);
+        
+        printf("#%d: %-40s [Thread: %d, Prio: %d", 
+               cmd_num, 
+               cmd_buffer[index].op_name,
+               cmd_buffer[index].thread_id,
+               cmd_buffer[index].thread_priority);
+
+        printf("]\n");
     }
 
-    printf("======================\n\n");
+    printf("========================================\n\n");
 }
 
 #if IS_USED(MODULE_AT86RF2XX_AES_SPI) && \
@@ -149,7 +175,7 @@ static int _write(ieee802154_dev_t *hal, const iolist_t *psdu)
     uint8_t len = 0;
 
     at86rf2xx_t *dev = hal->priv;
-add_operation("_write");
+    add_operation("_write");
     mutex_lock(&dev->lock);
     /* load packet data into FIFO */
     for (const iolist_t *iol = psdu; iol; iol = iol->iol_next) {
@@ -365,6 +391,9 @@ static int _request_set_tx(at86rf2xx_t *dev, bool force)
         return -EBUSY;
     }
     add_operation("_request_set_tx: not busy");
+    if (appending_irq) {
+        return -EBUSY;
+    }
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_TRX_STATE__FORCE_PLL_ON);
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_PHY_STATE_TX);
     return 0;
@@ -823,9 +852,12 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
     at86rf2xx_t *dev = hal->priv;
     uint8_t irq_mask;
     uint8_t state;
-    thread_t * active_thread = thread_get_active();
-    printf("radio thread_id=%d priority=%d", thread_getpid(), thread_get_priority(active_thread));
 
+    /*indicates that there is an interrupt to be processed, solves the Problem,
+        that the irq is blocked even with higher priority bc of the mutex.
+        Can release in inconsistent state 
+    */
+    atomic_store_u8(&appending_irq, 1);
     /* If transceiver is sleeping register access is impossible and frames are
      * lost anyway, so return immediately.
      */
@@ -849,18 +881,14 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
     if (irq_mask & AT86RF2XX_IRQ_STATUS_MASK__TRX_END) {
         if ((state == AT86RF2XX_PHY_STATE_RX)
             || (state == AT86RF2XX_PHY_STATE_RX_BUSY)) {
-
                 if (state == AT86RF2XX_PHY_STATE_RX) {
                     add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX");
-
                 }
                 else {
-                    add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX");
+                    add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX_BUSY");
                 }
             DEBUG("[at86rf2xx] EVT - RX_END\n");
-
             _isr_recv_complete(hal);
-
         }
         else if (state == AT86RF2XX_PHY_STATE_TX) {
             add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_TX");
@@ -872,7 +900,7 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
          add_operation("at86rf2xx_irq_handler: AT86RF2XX_IRQ_STATUS_MASK__CCA_ED_DONE");
         _dispatch_event(hal, IEEE802154_RADIO_CONFIRM_CCA);
     }
-
+    atomic_store_u8(&appending_irq, 0);
     mutex_unlock(&dev->lock);
 }
 
