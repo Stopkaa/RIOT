@@ -23,8 +23,9 @@
 #include "at86rf2xx_registers.h"
 #include "macros/utils.h"
 #include "net/ieee802154/radio.h"
+#include "sched.h"
 #include <stdio.h>
-
+#include "thread.h"
 #if IS_USED(MODULE_AT86RF2XX_AES_SPI)
 #include "at86rf2xx_aes.h"
 #endif
@@ -35,7 +36,7 @@
 static const ieee802154_radio_ops_t at86rf2xx_ops;
 static ieee802154_dev_t *at86rf2xx_periph;
 
-#define BUFFER_SIZE 10
+#define BUFFER_SIZE 20
 #define OP_NAME_LEN 128
 
 // Globaler Buffer und Counter
@@ -357,12 +358,13 @@ static int _request_set_rx(at86rf2xx_t *dev)
 
 static int _request_set_tx(at86rf2xx_t *dev, bool force)
 {
-    add_operation("_request_set_tx");
     DEBUG("at86r2xx_rf_ops: request_set_tx\n");
     /* Prevent issue described in https://github.com/RIOT-OS/RIOT/pull/11256 */
     if (at86rf2xx_get_status(dev) == AT86RF2XX_PHY_STATE_RX_BUSY && !force) {
+        add_operation("_request_set_tx: busy");
         return -EBUSY;
     }
+    add_operation("_request_set_tx: not busy");
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_TRX_STATE__FORCE_PLL_ON);
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_PHY_STATE_TX);
     return 0;
@@ -429,10 +431,10 @@ static int _confirm_transmit(at86rf2xx_t *dev, ieee802154_tx_info_t *info)
     uint8_t status = at86rf2xx_get_status(dev);
     if (status == AT86RF2XX_STATE_BUSY_TX_ARET || status == AT86RF2XX_STATE_BUSY_TX) {
         if (status == AT86RF2XX_STATE_BUSY_TX_ARET) {
-            add_operation("_confirm_op: AT86RF2XX_STATE_BUSY_TX_ARET");
+            add_operation("_confirm_transmit: AT86RF2XX_STATE_BUSY_TX_ARET");
         }
         else {
-            add_operation("_confirm_op: AT86RF2XX_STATE_BUSY_TX");
+            add_operation("_confirm_transmit: AT86RF2XX_STATE_BUSY_TX");
         }
         return -EAGAIN;
     }
@@ -765,7 +767,27 @@ int at86rf2xx_init(at86rf2xx_t *dev, const at86rf2xx_params_t *params, ieee80215
 
 static void _dispatch_event(ieee802154_dev_t *hal, ieee802154_trx_ev_t ev)
 {
-    add_operation("_dispatch_event");
+    
+    switch (ev) {
+        case IEEE802154_RADIO_CONFIRM_CCA:
+        add_operation("_dispatch_event: IEEE802154_RADIO_CONFIRM_CCA");
+        break;
+        case IEEE802154_RADIO_CONFIRM_TX_DONE:
+        add_operation("_dispatch_event: IEEE802154_RADIO_CONFIRM_TX_DONE");
+        break;
+        case IEEE802154_RADIO_INDICATION_RX_DONE:
+        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_RX_DONE");
+        break;
+        case IEEE802154_RADIO_INDICATION_TX_START:
+        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_TX_START");
+        break;
+        case IEEE802154_RADIO_INDICATION_CRC_ERROR:
+        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_CRC_ERROR");
+        break;
+        case IEEE802154_RADIO_INDICATION_RX_START:
+        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_RX_START");
+        break;
+    }
     at86rf2xx_t *dev = hal->priv;
     mutex_unlock(&dev->lock);
     hal->cb(hal, ev);
@@ -801,6 +823,8 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
     at86rf2xx_t *dev = hal->priv;
     uint8_t irq_mask;
     uint8_t state;
+    thread_t * active_thread = thread_get_active();
+    printf("radio thread_id=%d priority=%d", thread_getpid(), thread_get_priority(active_thread));
 
     /* If transceiver is sleeping register access is impossible and frames are
      * lost anyway, so return immediately.
@@ -839,13 +863,13 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
 
         }
         else if (state == AT86RF2XX_PHY_STATE_TX) {
-            add_operation("at86rf2xx_irq_handler: IEEE802154_RADIO_CONFIRM_TX_DONE");
+            add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_TX");
             _dispatch_event(hal, IEEE802154_RADIO_CONFIRM_TX_DONE);
         }
     }
 
     if (irq_mask & AT86RF2XX_IRQ_STATUS_MASK__CCA_ED_DONE) {
-         add_operation("at86rf2xx_irq_handler: IEEE802154_RADIO_CONFIRM_CCA");
+         add_operation("at86rf2xx_irq_handler: AT86RF2XX_IRQ_STATUS_MASK__CCA_ED_DONE");
         _dispatch_event(hal, IEEE802154_RADIO_CONFIRM_CCA);
     }
 

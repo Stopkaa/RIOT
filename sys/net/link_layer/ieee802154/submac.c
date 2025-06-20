@@ -28,6 +28,7 @@
 #include "errno.h"
 #include "atomic_utils.h"
 #include <sys/errno.h>
+#include "thread.h"
 
 #define ENABLE_DEBUG 1
 #include "debug.h"
@@ -392,6 +393,9 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx(ieee802154_submac_t *su
             ieee802154_radio_print_last_instructions(&submac->dev);
             assert(res >= 0);
         }
+        thread_t * active_thread = thread_get_active();
+    printf("radio thread_id=%d priority=%d", thread_getpid(), thread_get_priority(active_thread));
+
         return _fsm_state_tx_process_tx_done(submac, &info);
     case IEEE802154_FSM_EV_RX_DONE:
     case IEEE802154_FSM_EV_CRC_ERROR:
