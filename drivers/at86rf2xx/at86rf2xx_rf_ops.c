@@ -39,7 +39,7 @@
 
 static const ieee802154_radio_ops_t at86rf2xx_ops;
 static ieee802154_dev_t *at86rf2xx_periph;
-static uint8_t appending_irq;
+//static uint8_t appending_irq;
 #define BUFFER_SIZE 20
 #define OP_NAME_LEN 128
 
@@ -175,7 +175,7 @@ static int _write(ieee802154_dev_t *hal, const iolist_t *psdu)
     uint8_t len = 0;
 
     at86rf2xx_t *dev = hal->priv;
-    add_operation("_write");
+    //add_operation("_write");
     mutex_lock(&dev->lock);
     /* load packet data into FIFO */
     for (const iolist_t *iol = psdu; iol; iol = iol->iol_next) {
@@ -222,17 +222,17 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t size, ieee802154_rx_in
     if (pkt_len > size) {
         at86rf2xx_fb_stop(dev);
         mutex_unlock(&dev->lock);
-        add_operation("_read: pkt to big");
+        //add_operation("_read: pkt to big");
         return -ENOBUFS;
     }
 
     if (!buf) {
         at86rf2xx_fb_stop(dev);
         mutex_unlock(&dev->lock);
-        add_operation("_read: invalid buf");
+        //add_operation("_read: invalid buf");
         return 0;
     }
-    add_operation("_read");
+    //add_operation("_read");
 
     /* copy payload */
     at86rf2xx_fb_read(dev, (uint8_t *)buf, pkt_len);
@@ -302,7 +302,7 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t size, ieee802154_rx_in
 static int _request_on(ieee802154_dev_t *hal)
 {
     DEBUG("at86rf2xx_rf_ops: request_on\n");
-    add_operation("_request_on");
+    //add_operation("_request_on");
     at86rf2xx_t *dev = hal->priv;
     mutex_lock(&dev->lock);
 #if !AT86RF2XX_IS_PERIPH
@@ -333,11 +333,11 @@ static int _confirm_on(ieee802154_dev_t *hal)
                & AT86RF2XX_TRX_STATUS_MASK__TRX_STATUS;
 
      if (status != AT86RF2XX_TRX_STATUS__TRX_OFF) {
-        add_operation("_confirm_on: AT86RF2XX_TRX_STATUS__TRX_OFF");
+        //add_operation("_confirm_on: AT86RF2XX_TRX_STATUS__TRX_OFF");
          mutex_unlock(&dev->lock);
          return -EAGAIN;
      }
-     add_operation("_confirm_on");
+     //add_operation("_confirm_on");
     at86rf2xx_reg_read(dev, AT86RF2XX_REG__IRQ_STATUS);
     mutex_unlock(&dev->lock);
     return 0;
@@ -376,7 +376,7 @@ static int _off(ieee802154_dev_t *hal)
 }
 static int _request_set_rx(at86rf2xx_t *dev)
 {
-    add_operation("_request_set_rx");
+    //add_operation("_request_set_rx");
     DEBUG("at86r2xx_rf_ops: request_set_rx\n");
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_PHY_STATE_RX);
     return 0;
@@ -387,13 +387,13 @@ static int _request_set_tx(at86rf2xx_t *dev, bool force)
     DEBUG("at86r2xx_rf_ops: request_set_tx\n");
     /* Prevent issue described in https://github.com/RIOT-OS/RIOT/pull/11256 */
     if (at86rf2xx_get_status(dev) == AT86RF2XX_PHY_STATE_RX_BUSY && !force) {
-        add_operation("_request_set_tx: busy");
+        //add_operation("_request_set_tx: busy");
         return -EBUSY;
     }
-    add_operation("_request_set_tx: not busy");
-    if (appending_irq) {
-        return -EBUSY;
-    }
+    //add_operation("_request_set_tx: not busy");
+    //if (appending_irq) {
+    //    return -EBUSY;
+    //}
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_TRX_STATE__FORCE_PLL_ON);
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_PHY_STATE_TX);
     return 0;
@@ -401,7 +401,7 @@ static int _request_set_tx(at86rf2xx_t *dev, bool force)
 
 static int _request_cca(at86rf2xx_t *dev)
 {
-    add_operation("_request_cca");
+    //add_operation("_request_cca");
     DEBUG("at86rf2xx_rf_ops: request_cca\n");
     uint8_t reg;
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE, AT86RF2XX_TRX_STATE__FORCE_PLL_ON);
@@ -432,18 +432,18 @@ static int _request_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
         at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE,
                             AT86RF2XX_TRX_STATE__TX_START);
         res = 0;
-        add_operation("_request_op: IEEE802154_HAL_OP_TRANSMIT");
+        //add_operation("_request_op: IEEE802154_HAL_OP_TRANSMIT");
         break;
     case IEEE802154_HAL_OP_SET_RX:
-    add_operation("_request_op: IEEE802154_HAL_OP_SET_RX");
+    //add_operation("_request_op: IEEE802154_HAL_OP_SET_RX");
         res = _request_set_rx(dev);
         break;
     case IEEE802154_HAL_OP_SET_IDLE:
-    add_operation("_request_op: IEEE802154_HAL_OP_SET_IDLE");
+    //add_operation("_request_op: IEEE802154_HAL_OP_SET_IDLE");
         res = _request_set_tx(dev, *((bool*) ctx));
         break;
     case IEEE802154_HAL_OP_CCA:
-    add_operation("_request_op: IEEE802154_HAL_OP_CCA");
+    //add_operation("_request_op: IEEE802154_HAL_OP_CCA");
         res = _request_cca(dev);
         break;
     default:
@@ -460,10 +460,10 @@ static int _confirm_transmit(at86rf2xx_t *dev, ieee802154_tx_info_t *info)
     uint8_t status = at86rf2xx_get_status(dev);
     if (status == AT86RF2XX_STATE_BUSY_TX_ARET || status == AT86RF2XX_STATE_BUSY_TX) {
         if (status == AT86RF2XX_STATE_BUSY_TX_ARET) {
-            add_operation("_confirm_transmit: AT86RF2XX_STATE_BUSY_TX_ARET");
+            //add_operation("_confirm_transmit: AT86RF2XX_STATE_BUSY_TX_ARET");
         }
         else {
-            add_operation("_confirm_transmit: AT86RF2XX_STATE_BUSY_TX");
+            //add_operation("_confirm_transmit: AT86RF2XX_STATE_BUSY_TX");
         }
         return -EAGAIN;
     }
@@ -530,19 +530,19 @@ static int _confirm_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
     mutex_lock(&dev->lock);
     switch (op) {
     case IEEE802154_HAL_OP_TRANSMIT:
-    add_operation("_confirm_op: IEEE802154_HAL_OP_TRANSMIT");
+    //add_operation("_confirm_op: IEEE802154_HAL_OP_TRANSMIT");
         res = _confirm_transmit(dev, ctx);
         break;
     case IEEE802154_HAL_OP_SET_RX:
-        add_operation("_confirm_op: IEEE802154_HAL_OP_SET_RX");
+        //add_operation("_confirm_op: IEEE802154_HAL_OP_SET_RX");
         res = _confirm_set_trx_state(dev);
         break;
     case IEEE802154_HAL_OP_SET_IDLE:
-    add_operation("_confirm_op: IEEE802154_HAL_OP_SET_IDLE");
+    //add_operation("_confirm_op: IEEE802154_HAL_OP_SET_IDLE");
         res = _confirm_set_trx_state(dev);
         break;
     case IEEE802154_HAL_OP_CCA:
-    add_operation("_confirm_op: IEEE802154_HAL_OP_CCA");
+    //add_operation("_confirm_op: IEEE802154_HAL_OP_CCA");
         res = _confirm_cca(dev);
         break;
     default:
@@ -611,7 +611,7 @@ static int _set_csma_params(ieee802154_dev_t *hal, const ieee802154_csma_be_t *b
     DEBUG("\n");
 
     mutex_unlock(&dev->lock);
-    add_operation("_set_csma_params");
+    //add_operation("_set_csma_params");
     return 0;
 }
 
@@ -626,7 +626,7 @@ static int _config_addr_filter(ieee802154_dev_t *hal, ieee802154_af_cmd_t cmd, c
     mutex_lock(&dev->lock);
     switch (cmd) {
     case IEEE802154_AF_SHORT_ADDR:
-    add_operation("_config_addr_filter: IEEE802154_AF_SHORT_ADDR");
+    //add_operation("_config_addr_filter: IEEE802154_AF_SHORT_ADDR");
         at86rf2xx_reg_write(dev, AT86RF2XX_REG__SHORT_ADDR_0,
                             short_addr->u8[1]);
         at86rf2xx_reg_write(dev, AT86RF2XX_REG__SHORT_ADDR_1,
@@ -634,7 +634,7 @@ static int _config_addr_filter(ieee802154_dev_t *hal, ieee802154_af_cmd_t cmd, c
         DEBUG("SHORT_ADDR: %04x\n", byteorder_ntohs(*short_addr));
         break;
     case IEEE802154_AF_EXT_ADDR:
-    add_operation("_config_addr_filter: IEEE802154_AF_EXT_ADDR");
+    //add_operation("_config_addr_filter: IEEE802154_AF_EXT_ADDR");
         DEBUG(" EXT_ADDR: ");
         for (int i = 0; i < 8; i++) {
             at86rf2xx_reg_write(dev, (AT86RF2XX_REG__IEEE_ADDR_0 + i),
@@ -644,7 +644,7 @@ static int _config_addr_filter(ieee802154_dev_t *hal, ieee802154_af_cmd_t cmd, c
         DEBUG("\n");
         break;
     case IEEE802154_AF_PANID: {
-        add_operation("_config_addr_filter: IEEE802154_AF_PANID");
+        //add_operation("_config_addr_filter: IEEE802154_AF_PANID");
         le_uint16_t le_pan = byteorder_btols(byteorder_htons(*pan_id));
         at86rf2xx_reg_write(dev, AT86RF2XX_REG__PAN_ID_0, le_pan.u8[0]);
         at86rf2xx_reg_write(dev, AT86RF2XX_REG__PAN_ID_1, le_pan.u8[1]);
@@ -652,7 +652,7 @@ static int _config_addr_filter(ieee802154_dev_t *hal, ieee802154_af_cmd_t cmd, c
     }
         break;
     case IEEE802154_AF_PAN_COORD:
-    add_operation("_config_addr_filter: IEEE802154_AF_PAN_COORD");
+    //add_operation("_config_addr_filter: IEEE802154_AF_PAN_COORD");
         mutex_unlock(&dev->lock);
         return -ENOTSUP;
     }
@@ -669,14 +669,14 @@ static int _config_src_addr_match(ieee802154_dev_t *hal, ieee802154_src_match_t 
     mutex_lock(&dev->lock);
     switch (cmd) {
         case IEEE802154_SRC_MATCH_EN: {
-            add_operation("_config_src_addr_match: IEEE802154_SRC_MATCH_EN");
+            //add_operation("_config_src_addr_match: IEEE802154_SRC_MATCH_EN");
             const bool en = *((const bool*) value);
             at86rf2xx_set_option(dev, AT86RF2XX_OPT_ACK_PENDING, en);
             res = 0;
             break;
         }
         default:
-        add_operation("_config_src_addr_match: default");
+        //add_operation("_config_src_addr_match: default");
             res = -ENOTSUP;
     }
     mutex_unlock(&dev->lock);
@@ -690,16 +690,16 @@ static int _set_frame_filter_mode(ieee802154_dev_t *hal, ieee802154_filter_mode_
     bool promisc = false;
     switch(mode) {
         case IEEE802154_FILTER_ACCEPT:
-        add_operation("_set_frame_filter_mode: IEEE802154_FILTER_ACCEPT");
+        //add_operation("_set_frame_filter_mode: IEEE802154_FILTER_ACCEPT");
             promisc = false;
             break;
         case IEEE802154_FILTER_PROMISC:
-        add_operation("_set_frame_filter_mode: IEEE802154_FILTER_PROMISC");
+        //add_operation("_set_frame_filter_mode: IEEE802154_FILTER_PROMISC");
             promisc = true;
             break;
         case IEEE802154_FILTER_ACK_ONLY:
         case IEEE802154_FILTER_SNIFFER:
-        add_operation("_set_frame_filter_mode: IEEE802154_FILTER_ACK_ONLY or IEEE802154_FILTER_SNIFFER");
+        //add_operation("_set_frame_filter_mode: IEEE802154_FILTER_ACK_ONLY or IEEE802154_FILTER_SNIFFER");
             return -ENOTSUP;
     }
 
@@ -799,22 +799,22 @@ static void _dispatch_event(ieee802154_dev_t *hal, ieee802154_trx_ev_t ev)
     
     switch (ev) {
         case IEEE802154_RADIO_CONFIRM_CCA:
-        add_operation("_dispatch_event: IEEE802154_RADIO_CONFIRM_CCA");
+        //add_operation("_dispatch_event: IEEE802154_RADIO_CONFIRM_CCA");
         break;
         case IEEE802154_RADIO_CONFIRM_TX_DONE:
-        add_operation("_dispatch_event: IEEE802154_RADIO_CONFIRM_TX_DONE");
+        //add_operation("_dispatch_event: IEEE802154_RADIO_CONFIRM_TX_DONE");
         break;
         case IEEE802154_RADIO_INDICATION_RX_DONE:
-        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_RX_DONE");
+        //add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_RX_DONE");
         break;
         case IEEE802154_RADIO_INDICATION_TX_START:
-        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_TX_START");
+        //add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_TX_START");
         break;
         case IEEE802154_RADIO_INDICATION_CRC_ERROR:
-        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_CRC_ERROR");
+        //add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_CRC_ERROR");
         break;
         case IEEE802154_RADIO_INDICATION_RX_START:
-        add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_RX_START");
+        //add_operation("_dispatch_event: IEEE802154_RADIO_INDICATION_RX_START");
         break;
     }
     at86rf2xx_t *dev = hal->priv;
@@ -833,16 +833,16 @@ static inline void _isr_recv_complete(ieee802154_dev_t *hal)
         bool crc_ok = phy_status & AT86RF2XX_PHY_RSSI_MASK__RX_CRC_VALID;
 
         if (crc_ok) {
-            add_operation("_isr_recv_complete: IEEE802154_RADIO_INDICATION_RX_DONE");
+            //add_operation("_isr_recv_complete: IEEE802154_RADIO_INDICATION_RX_DONE");
             _dispatch_event(hal, IEEE802154_RADIO_INDICATION_RX_DONE);
         }
         else {
-            add_operation("_isr_recv_complete: IEEE802154_RADIO_INDICATION_CRC_ERROR");
+            //add_operation("_isr_recv_complete: IEEE802154_RADIO_INDICATION_CRC_ERROR");
             _dispatch_event(hal, IEEE802154_RADIO_INDICATION_CRC_ERROR);
         }
     }
     else {
-         add_operation("_isr_recv_complete: IEEE802154_RADIO_INDICATION_RX_DONE");
+         //add_operation("_isr_recv_complete: IEEE802154_RADIO_INDICATION_RX_DONE");
         _dispatch_event(hal, IEEE802154_RADIO_INDICATION_RX_DONE);
     }
 }
@@ -857,14 +857,14 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
         that the irq is blocked even with higher priority bc of the mutex.
         Can release in inconsistent state 
     */
-    atomic_store_u8(&appending_irq, 1);
+    //atomic_store_u8(&appending_irq, 1);
     /* If transceiver is sleeping register access is impossible and frames are
      * lost anyway, so return immediately.
      */
+     state = at86rf2xx_get_status(dev);
     mutex_lock(&dev->lock);
-    state = at86rf2xx_get_status(dev);
     if (state == AT86RF2XX_STATE_SLEEP) {
-        add_operation("at86rf2xx_irq_handler: AT86RF2XX_STATE_SLEEP");
+        //add_operation("at86rf2xx_irq_handler: AT86RF2XX_STATE_SLEEP");
         mutex_unlock(&dev->lock);
         return;
     }
@@ -873,7 +873,7 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
     irq_mask = at86rf2xx_reg_read(dev, AT86RF2XX_REG__IRQ_STATUS);
 
     if (irq_mask & AT86RF2XX_IRQ_STATUS_MASK__RX_START) {
-        add_operation("at86rf2xx_irq_handler: AT86RF2XX_IRQ_STATUS_MASK__RX_START");
+        //add_operation("at86rf2xx_irq_handler: AT86RF2XX_IRQ_STATUS_MASK__RX_START");
         _dispatch_event(hal, IEEE802154_RADIO_INDICATION_RX_START);
         DEBUG("[at86rf2xx] EVT - RX_START\n");
     }
@@ -882,25 +882,25 @@ void at86rf2xx_irq_handler(ieee802154_dev_t *hal)
         if ((state == AT86RF2XX_PHY_STATE_RX)
             || (state == AT86RF2XX_PHY_STATE_RX_BUSY)) {
                 if (state == AT86RF2XX_PHY_STATE_RX) {
-                    add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX");
+                    //add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX");
                 }
                 else {
-                    add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX_BUSY");
+                    //add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_RX_BUSY");
                 }
             DEBUG("[at86rf2xx] EVT - RX_END\n");
             _isr_recv_complete(hal);
         }
         else if (state == AT86RF2XX_PHY_STATE_TX) {
-            add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_TX");
+            //add_operation("at86rf2xx_irq_handler: AT86RF2XX_PHY_STATE_TX");
             _dispatch_event(hal, IEEE802154_RADIO_CONFIRM_TX_DONE);
         }
     }
 
     if (irq_mask & AT86RF2XX_IRQ_STATUS_MASK__CCA_ED_DONE) {
-         add_operation("at86rf2xx_irq_handler: AT86RF2XX_IRQ_STATUS_MASK__CCA_ED_DONE");
+         //add_operation("at86rf2xx_irq_handler: AT86RF2XX_IRQ_STATUS_MASK__CCA_ED_DONE");
         _dispatch_event(hal, IEEE802154_RADIO_CONFIRM_CCA);
     }
-    atomic_store_u8(&appending_irq, 0);
+    //atomic_store_u8(&appending_irq, 0);
     mutex_unlock(&dev->lock);
 }
 
