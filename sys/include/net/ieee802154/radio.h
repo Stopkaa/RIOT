@@ -816,9 +816,6 @@ struct ieee802154_radio_ops {
      * May be NULL if the radio does not support crypto acceleration.
      */
     const struct ieee802154_radio_cipher_ops *cipher_ops;
-
-    //TODO delete afer debug
-    void (*print_operations)(void);
 };
 
 /**
@@ -1600,11 +1597,6 @@ static inline bool ieee802154_radio_has_phy_mr_fsk(ieee802154_dev_t *dev)
 static inline uint32_t ieee802154_radio_get_phy_modes(ieee802154_dev_t *dev)
 {
     return (dev->driver->caps & IEEE802154_RF_CAPS_PHY_MASK);
-}
-
-static inline void ieee802154_radio_print_last_instructions(ieee802154_dev_t *dev) 
-{
-    dev->driver->print_operations();
 }
 
 /**

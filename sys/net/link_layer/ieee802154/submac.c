@@ -389,10 +389,7 @@ static ieee802154_submac_fsm_return_status _fsm_state_tx(ieee802154_submac_t *su
         return IEEE802154_SUBMAC_FSM_RETURN_IGNORED;
     case IEEE802154_FSM_EV_TX_DONE:
         res = ieee802154_radio_confirm_transmit(&submac->dev, &info);
-        if (res < 0) {
-            ieee802154_radio_print_last_instructions(&submac->dev);
-            assert(res >= 0);
-        }
+        assert(res >= 0);
         return _fsm_state_tx_process_tx_done(submac, &info);
     case IEEE802154_FSM_EV_RX_DONE:
     case IEEE802154_FSM_EV_CRC_ERROR:
