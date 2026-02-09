@@ -326,6 +326,7 @@ PSEUDOMODULES += ieee802154_submac
 PSEUDOMODULES += ieee802154_submac_soft_ack
 PSEUDOMODULES += ieee802154_submac_soft_csma_ca
 PSEUDOMODULES += ieee802154_submac_soft_frame_retrans
+PSEUDOMODULES += ieee802154_mac
 PSEUDOMODULES += ipv4
 PSEUDOMODULES += ipv6
 
