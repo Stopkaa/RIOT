@@ -59,6 +59,8 @@
 static uint8_t rxbuf[IEEE802154_FRAME_LEN_MAX + 3]; /* len PHR + PSDU + LQI */
 static uint8_t txbuf[IEEE802154_FRAME_LEN_MAX + 3]; /* len PHR + PSDU + LQI */
 
+static bool nrf802154_is_coordinator;
+
 typedef enum {
     STATE_IDLE,
     STATE_TX,
@@ -123,6 +125,15 @@ static bool _l2filter(uint8_t *mhr)
             }
         }
     }
+
+    /* some MACCMD dont have a dst_addr when in same PAN */
+    if (nrf802154_is_coordinator && (dst_addr_len == 0)) {
+    if (memcmp(&nrf802154_pan_id, src_pan.u8, 2) == 0) {
+        return true;
+    }
+    return false;
+    }
+
     /* filter PAN ID */
     /* Will only work on little endian platform (all?) */
 
@@ -404,6 +415,8 @@ int nrf802154_init(void)
     rxbuf[0] = 0;
     txbuf[0] = 0;
 
+    nrf802154_is_coordinator = false;
+
     /* power off peripheral (but do not release the HFXO as we never requested
      * it so far) */
     NRF_RADIO->POWER = 0;
@@ -648,7 +661,10 @@ static int _config_addr_filter(ieee802154_dev_t *dev, ieee802154_af_cmd_t cmd, c
             nrf802154_pan_id = *pan_id;
             break;
         case IEEE802154_AF_PAN_COORD:
-            return -ENOTSUP;
+            bool v = false;
+            memcpy(&v, value, sizeof(v));
+            nrf802154_is_coordinator = v;
+            break;
     }
 
     return 0;
