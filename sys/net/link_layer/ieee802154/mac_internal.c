@@ -42,7 +42,8 @@ static void _submac_rx_done(ieee802154_submac_t *submac)
 {
     ieee802154_mac_t *mac = container_of(submac, ieee802154_mac_t, submac);
 
-    mac->cbs.allocate_request(mac);
+    int len = ieee802154_get_frame_length(&mac->submac);
+    mac->cbs.allocate_request(mac, (len > 0) ? (size_t)len : 0);
 }
 
 static void _submac_tx_done(ieee802154_submac_t *submac, int status, ieee802154_tx_info_t *info)

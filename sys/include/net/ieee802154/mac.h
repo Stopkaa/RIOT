@@ -392,7 +392,7 @@ typedef void (*ieee802154_mac_scan_timer_request_t)(void *mac);
 /**
  * @brief IEEE 802.15.4 MAC allocate request callback.
  */
-typedef void (*ieee802154_mac_allocate_request_t)(void *mac);
+typedef void (*ieee802154_mac_allocate_request_t)(void *mac, size_t len);
 /**
  * @brief IEEE 802.15.4 MAC RX request callback.
  */

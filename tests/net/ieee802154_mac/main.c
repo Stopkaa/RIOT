@@ -781,7 +781,7 @@ static int _init(void)
         .dealloc_request = my_dealloc,
         .rx_request = my_rx
     };
-    ieee802154_dev_type_t dev_type = IEEE802154_MAC_TEST_DEV_TYPE;
+    ieee802154_dev_type_t dev_type = IEEE802154_DEV_TYPE_INVALID;
     if (ieee802154_mac_test_init_devs(&mac.submac.dev, &dev_type) < 0) {
         return -ENODEV;
     }
