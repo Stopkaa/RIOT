@@ -420,6 +420,9 @@ static ieee802154_mac_state_t _mac_fsm_state_coordinator(ieee802154_mac_t *mac,
                                                (uint8_t)ctx->src_len,
                                                ctx->src_mode, ctx->capability);
         }
+        if (mac->cbs.rx_request) {
+            mac->cbs.rx_request(mac);
+        }
         return IEEE802154_MAC_STATE_COORDINATOR;
     case IEEE802154_MAC_FSM_EV_DISASSOC_RX:
     case IEEE802154_MAC_FSM_EV_RX_CMD_DISASSOC:
@@ -442,7 +445,9 @@ static ieee802154_mac_state_t _mac_fsm_state_coordinator(ieee802154_mac_t *mac,
             {
                 DEBUG("IEEE802154 MAC: failed to send data in response to data request status=%d\n", res);
             }
-
+            if (mac->cbs.rx_request) {
+                mac->cbs.rx_request(mac);
+            }
         }
         return IEEE802154_MAC_STATE_COORDINATOR;
     case IEEE802154_MAC_FSM_EV_RX_CMD_BEACON_REQ:
@@ -723,6 +728,7 @@ static int _mac_fsm_process_ev(ieee802154_mac_t *mac, ieee802154_mac_fsm_ev_t ev
             mac->coord_softmode = false;
         }
         mac->is_coordinator = true;
+        mac->cbs.rx_request(mac);
     }
 
     return 0;
