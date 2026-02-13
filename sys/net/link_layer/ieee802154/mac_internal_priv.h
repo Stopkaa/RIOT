@@ -100,7 +100,7 @@ void ieee802154_mac_submac_attach(ieee802154_mac_t *mac);
 /**
  * @brief Finish the current TX and report status.
  */
-void ieee802154_mac_tx_finish_current(ieee802154_mac_t *mac, int status);
+void ieee802154_mac_tx_finish_current(ieee802154_mac_t *mac, int status, ieee802154_tx_info_t *info);
 
 /**
  * @brief Attach the IEEE 802.15.4 Radio HAL callbacks.

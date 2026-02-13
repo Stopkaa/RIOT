@@ -50,7 +50,7 @@ static void _submac_tx_done(ieee802154_submac_t *submac, int status, ieee802154_
 {
     (void)info;
     ieee802154_mac_t *mac = container_of(submac, ieee802154_mac_t, submac);
-    ieee802154_mac_tx_finish_current(mac, status);
+    ieee802154_mac_tx_finish_current(mac, status, info);
 }
 
 static const ieee802154_submac_cb_t _submac_cbs = {

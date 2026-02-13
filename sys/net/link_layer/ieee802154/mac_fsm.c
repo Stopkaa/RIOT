@@ -794,7 +794,7 @@ static int _mac_tx_request(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mod
     int r = ieee802154_send(&mac->submac, &d->iol_mhr);
     if (r != 0)
     {
-        ieee802154_mac_tx_finish_current(mac, r);
+        ieee802154_mac_tx_finish_current(mac, r, NULL);
         return -EIO;
     }
     mac->indirect_q.busy = true;
