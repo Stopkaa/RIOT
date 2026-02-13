@@ -273,9 +273,9 @@ static ieee802154_mac_state_t _mac_fsm_state_idle(ieee802154_mac_t *mac,
             const void *src_addr = (ctx->src_mode == IEEE802154_ADDR_MODE_SHORT)
                                     ? (const void *)ctx->src
                                     : (const void *)&ctx->src_addr;
-            if (_mac_tx_request(mac, ctx->src_mode, src_addr) > 0) {
-                mac->cbs.dealloc_request(mac, ctx->buf);
-            }
+            ztimer_sleep(ZTIMER_USEC,
+                         (uint32_t)IEEE802154_SIFS_SYMS * (uint32_t)mac->sym_us);
+            (void)_mac_tx_request(mac, ctx->src_mode, src_addr);
         }
         return IEEE802154_MAC_STATE_IDLE;
     case IEEE802154_MAC_FSM_EV_RX_CMD_BEACON_REQ:
@@ -398,9 +398,9 @@ static ieee802154_mac_state_t _mac_fsm_state_scan_active(ieee802154_mac_t *mac,
             const void *src_addr = (ctx->src_mode == IEEE802154_ADDR_MODE_SHORT)
                                     ? (const void *)ctx->src
                                     : (const void *)&ctx->src_addr;
-            if (_mac_tx_request(mac, ctx->src_mode, src_addr) > 0) {
-                mac->cbs.dealloc_request(mac, ctx->buf);
-            }
+            ztimer_sleep(ZTIMER_USEC,
+                         (uint32_t)IEEE802154_SIFS_SYMS * (uint32_t)mac->sym_us);
+            (void)_mac_tx_request(mac, ctx->src_mode, src_addr);
         }
         return IEEE802154_MAC_STATE_SCAN_ACTIVE;
     default:
@@ -435,6 +435,8 @@ static ieee802154_mac_state_t _mac_fsm_state_coordinator(ieee802154_mac_t *mac,
             const void *src_addr = (ctx->src_mode == IEEE802154_ADDR_MODE_SHORT)
                                     ? (const void *)ctx->src
                                     : (const void *)&ctx->src_addr;
+            ztimer_sleep(ZTIMER_USEC,
+                         (uint32_t)IEEE802154_SIFS_SYMS * (uint32_t)mac->sym_us);
             int res = _mac_tx_request(mac, ctx->src_mode, src_addr);
             if (res < 0)
             {
