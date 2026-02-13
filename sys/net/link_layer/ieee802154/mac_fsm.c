@@ -254,7 +254,7 @@ static ieee802154_mac_state_t _mac_fsm_state_idle(ieee802154_mac_t *mac,
                 *ctx->result = res;
             }
         }
-        return IEEE802154_MAC_STATE_DEVICE;
+        return IEEE802154_MAC_STATE_IDLE;
     case IEEE802154_MAC_FSM_EV_TX_REQUEST:
         if (ctx && ctx->dst_addr && ctx->result) {
             *ctx->result = _mac_tx_request(mac, ctx->dst_mode, ctx->dst_addr);
