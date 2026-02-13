@@ -203,8 +203,9 @@ static int _mac_assoc_response(ieee802154_mac_t *mac, const ieee802154_mac_fsm_c
         src_mode = IEEE802154_ADDR_MODE_SHORT;
     }
 
+    /* Association response should be sent indirectly after a data request */
     return _mac_enqueue_and_tx(mac, ctx, src_mode, IEEE802154_FCF_TYPE_MACCMD,
-                               &mac->cmd, &handle, true, false);
+                               &mac->cmd, &handle, true, true);
 }
 
 static void _debug_data_req(ieee802154_mac_t *mac, const ieee802154_mac_fsm_ctx_t *ctx)
@@ -248,7 +249,10 @@ static ieee802154_mac_state_t _mac_fsm_state_idle(ieee802154_mac_t *mac,
         return IEEE802154_MAC_STATE_ASSOCIATING;
     case IEEE802154_MAC_FSM_EV_MLME_POLL:
         if (ctx) {
-            (void)_mac_poll_request(mac, ctx);
+            int res = _mac_poll_request(mac, ctx);
+            if (ctx->result) {
+                *ctx->result = res;
+            }
         }
         return IEEE802154_MAC_STATE_DEVICE;
     case IEEE802154_MAC_FSM_EV_TX_REQUEST:
@@ -432,9 +436,7 @@ static ieee802154_mac_state_t _mac_fsm_state_coordinator(ieee802154_mac_t *mac,
                                     ? (const void *)ctx->src
                                     : (const void *)&ctx->src_addr;
             int res = _mac_tx_request(mac, ctx->src_mode, src_addr);
-            if (res > 0) {
-                mac->cbs.dealloc_request(mac, ctx->buf);
-            }else if (res < 0)
+            if (res < 0)
             {
                 DEBUG("IEEE802154 MAC: failed to send data in response to data request status=%d\n", res);
             }
@@ -502,7 +504,10 @@ static ieee802154_mac_state_t _mac_fsm_state_device(ieee802154_mac_t *mac,
         return IEEE802154_MAC_STATE_DEVICE;
     case IEEE802154_MAC_FSM_EV_MLME_POLL:
         if (ctx) {
-            (void)_mac_poll_request(mac, ctx);
+            int res = _mac_poll_request(mac, ctx);
+            if (ctx->result) {
+                *ctx->result = res;
+            }
         }
         return IEEE802154_MAC_STATE_DEVICE;
     case IEEE802154_MAC_FSM_EV_MCPS_DATA_REQ:
@@ -522,6 +527,14 @@ static ieee802154_mac_state_t _mac_fsm_state_associating(ieee802154_mac_t *mac,
                                                          const ieee802154_mac_fsm_ctx_t *ctx)
 {
     switch (ev) {
+    case IEEE802154_MAC_FSM_EV_MLME_POLL:
+        if (ctx) {
+            int res = _mac_poll_request(mac, ctx);
+            if (ctx->result) {
+                *ctx->result = res;
+            }
+        }
+        return IEEE802154_MAC_STATE_ASSOCIATING;
     case IEEE802154_MAC_FSM_EV_RX_CMD_ASSOC_RES:
         mac->assoc_pending = false;
         if (ctx && ctx->assoc_status == 0) {
