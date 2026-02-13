@@ -452,20 +452,8 @@ static ieee802154_mac_state_t _mac_fsm_state_coordinator(ieee802154_mac_t *mac,
         return IEEE802154_MAC_STATE_COORDINATOR;
     case IEEE802154_MAC_FSM_EV_RX_CMD_BEACON_REQ:
         if (ctx) {
-            DEBUG("SENDING BEACON\n");
             _mac_enqueue_beacon(mac);
-            const void *dst_addr = NULL;
-            ieee802154_addr_mode_t dst_mode = IEEE802154_ADDR_MODE_NONE;
-            if (ctx->src_len > 0) {
-                dst_mode = ctx->src_mode;
-                dst_addr = (ctx->src_mode == IEEE802154_ADDR_MODE_SHORT)
-                           ? (const void *)ctx->src
-                           : (const void *)&ctx->src_addr;
-            }
-            if (_mac_tx_request(mac, dst_mode, dst_addr) < 0)
-            {
-                DEBUG("ERROR SENDING BEACON\n");
-            }
+            (void)_mac_tx_request(mac, IEEE802154_ADDR_MODE_NONE, NULL);
         }
         return IEEE802154_MAC_STATE_COORDINATOR;
     case IEEE802154_MAC_FSM_EV_TX_REQUEST:
