@@ -9,7 +9,7 @@
 
 #include "mac_internal_priv.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static void _process_event(ieee802154_mac_t *mac, uint8_t ev);

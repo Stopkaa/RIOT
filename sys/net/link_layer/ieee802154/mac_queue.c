@@ -8,7 +8,7 @@
 #include "mac_internal_priv.h"
 #include "mac_pib.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static uint8_t ieee80214_addr_len_from_mode(ieee802154_addr_mode_t mode);
@@ -228,7 +228,6 @@ static int _enqueue_data_tx(ieee802154_mac_t *mac,
     dsc->ack = ack_req;
     dsc->indirect = indirect;
     dsc->tx_state = IEEE802154_TX_STATE_QUEUED;
-    DEBUG("IEEE802154 MAC: TX state QUEUED (handle=%u)\n", dsc->handle);
 
     /* src addr selection */
     const void *src = NULL;

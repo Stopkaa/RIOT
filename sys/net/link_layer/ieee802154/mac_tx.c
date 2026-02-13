@@ -7,9 +7,10 @@
 #include "mutex.h"
 #include "ztimer.h"
 
+#include "mac_pib.h"
 #include "mac_internal_priv.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static void _tx_finish(ieee802154_mac_t *mac, ieee802154_mac_indirect_q_t *indirect_q, int slot,

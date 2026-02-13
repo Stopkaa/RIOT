@@ -18,7 +18,7 @@
 #define IEEE802154_PIB_OFF(field)   ((uint16_t)offsetof(ieee802154_pib_t, field))
 #define IEEE802154_PIB_SIZE(field)  ((uint16_t)sizeof(((ieee802154_pib_t *)0)->field))
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static const ieee802154_pib_attr_entry_t ieee802154_pib_attr[IEEE802154_PIB_ATTR_COUNT] = {

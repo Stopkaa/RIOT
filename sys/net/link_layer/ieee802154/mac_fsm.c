@@ -658,30 +658,28 @@ static int _mac_fsm_process_ev(ieee802154_mac_t *mac, ieee802154_mac_fsm_ev_t ev
         return -EINVAL;
     }
 
-    if (new_state != mac->state) {
-        const char *ev_str = (ev < (sizeof(_mac_fsm_ev_str) / sizeof(_mac_fsm_ev_str[0])))
-                             ? _mac_fsm_ev_str[ev]
-                             : "UNKNOWN";
-        const char *old_str = (mac->state < (sizeof(_mac_fsm_state_str) /
-                             sizeof(_mac_fsm_state_str[0])))
-                             ? _mac_fsm_state_str[mac->state]
-                             : "UNKNOWN";
-        const char *new_str = (new_state < (sizeof(_mac_fsm_state_str) /
-                             sizeof(_mac_fsm_state_str[0])))
-                             ? _mac_fsm_state_str[new_state]
-                             : "UNKNOWN";
-        if (ev_str == NULL) {
-            ev_str = "UNKNOWN";
-        }
-        if (old_str == NULL) {
-            old_str = "UNKNOWN";
-        }
-        if (new_str == NULL) {
-            new_str = "UNKNOWN";
-        }
-        DEBUG("IEEE802154 MAC: FSM %s -> %s on %s\n", old_str, new_str, ev_str);
-        mac->state = new_state;
+    const char *ev_str = (ev < (sizeof(_mac_fsm_ev_str) / sizeof(_mac_fsm_ev_str[0])))
+                            ? _mac_fsm_ev_str[ev]
+                            : "UNKNOWN";
+    const char *old_str = (mac->state < (sizeof(_mac_fsm_state_str) /
+                            sizeof(_mac_fsm_state_str[0])))
+                            ? _mac_fsm_state_str[mac->state]
+                            : "UNKNOWN";
+    const char *new_str = (new_state < (sizeof(_mac_fsm_state_str) /
+                            sizeof(_mac_fsm_state_str[0])))
+                            ? _mac_fsm_state_str[new_state]
+                            : "UNKNOWN";
+    if (ev_str == NULL) {
+        ev_str = "UNKNOWN";
     }
+    if (old_str == NULL) {
+        old_str = "UNKNOWN";
+    }
+    if (new_str == NULL) {
+        new_str = "UNKNOWN";
+    }
+    DEBUG("IEEE802154 MAC: FSM %s -> %s on %s\n", old_str, new_str, ev_str);
+    mac->state = new_state;
 
     if ((ev == IEEE802154_MAC_FSM_EV_SCAN_START) &&
         (mac->state == IEEE802154_MAC_STATE_SCAN_ACTIVE)) {
@@ -775,9 +773,6 @@ static int _mac_tx_request(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mod
     int slot = ieee802154_mac_indirectq_search_slot(mac, dst_mode, dst_addr);
 
     if (slot < 0) {
-        if (mac->is_coordinator) {
-            mac->cbs.rx_request(mac);
-        }
         return 1;
     }
     ieee802154_mac_txq_t *txq = &mac->indirect_q.q[slot];
@@ -785,44 +780,17 @@ static int _mac_tx_request(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mod
         ieee802154_mac_handle_indirectq_auto_free(mac, &mac->indirect_q, slot);
         return -ENOBUFS;
     }
-
-    DEBUG("IEEE802154 MAC: TX slot=%d key_mode=%u dst_mode=%u\n",
-          slot, (unsigned)txq->key_mode, (unsigned)txq->dst_mode);
     if (txq->key_mode == IEEE802154_ADDR_MODE_SHORT) {
-        network_uint16_t s = txq->dst_short_addr;
-        DEBUG("IEEE802154 MAC: TX dst_short=0x%04x raw=%02x%02x\n",
-              byteorder_ntohs(s), s.u8[0], s.u8[1]);
+        (void)txq->dst_short_addr;
     }
     else if (txq->key_mode == IEEE802154_ADDR_MODE_EXTENDED) {
-        const uint8_t *e = txq->dst_ext_addr.uint8;
-        DEBUG("IEEE802154 MAC: TX dst_ext=%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-              e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
+        (void)txq->dst_ext_addr;
     }
 
     ieee802154_mac_tx_desc_t *d = ieee802154_mac_tx_peek(txq);
-    if (d) {
-        uint8_t dst_buf[IEEE802154_LONG_ADDRESS_LEN];
-        le_uint16_t dst_pan = { .u16 = 0 };
-        int dst_len = ieee802154_get_dst(d->mhr, dst_buf, &dst_pan);
-        if (dst_len == IEEE802154_SHORT_ADDRESS_LEN) {
-            network_uint16_t dst_short = { .u8 = { dst_buf[0], dst_buf[1] } };
-            DEBUG("IEEE802154 MAC: TX mhr dst_pan=0x%04x dst_short=0x%04x\n",
-                  byteorder_ltohs(dst_pan), byteorder_ntohs(dst_short));
-        }
-        else if (dst_len == IEEE802154_LONG_ADDRESS_LEN) {
-            DEBUG("IEEE802154 MAC: TX mhr dst_pan=0x%04x dst_ext=%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-                  byteorder_ltohs(dst_pan),
-                  dst_buf[0], dst_buf[1], dst_buf[2], dst_buf[3],
-                  dst_buf[4], dst_buf[5], dst_buf[6], dst_buf[7]);
-        }
-        else {
-            DEBUG("IEEE802154 MAC: TX mhr dst_len=%d\n", dst_len);
-        }
-    }
     mac->indirect_q.current_slot = slot;
     mac->indirect_q.current_txq = txq;
     d->tx_state = IEEE802154_TX_STATE_IN_PROGRESS;
-    DEBUG("IEEE802154 MAC: TX state IN_PROGRESS (handle=%u)\n", d->handle);
     int r = ieee802154_send(&mac->submac, &d->iol_mhr);
     if (r != 0)
     {

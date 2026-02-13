@@ -20,8 +20,6 @@ extern "C" {
 
 #include "net/ieee802154/mac.h"
 
-#define ENABLE_DEBUG 1
-#include "debug.h"
 
 /**
  * @brief IEEE 802.15.4 MAC thread event type.

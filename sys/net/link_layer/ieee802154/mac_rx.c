@@ -10,7 +10,7 @@
 
 #include "mac_internal_priv.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static bool _mac_rx_decode_frame(ieee802154_mac_t *mac, iolist_t *buf, int len,
