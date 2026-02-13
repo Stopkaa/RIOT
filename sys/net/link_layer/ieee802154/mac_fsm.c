@@ -560,6 +560,10 @@ static ieee802154_mac_state_t _mac_fsm_state_associating(ieee802154_mac_t *mac,
                 DEBUG("IEEE802154 MAC: assoc, error setting short address\n");
             }
             (void)ieee802154_set_idle(&mac->submac);
+            if (mac->cbs.mlme_associate_confirm) {
+                mac->cbs.mlme_associate_confirm(mac->cbs.mac, 0,
+                                                ctx->assoc_short_addr);
+            }
             return IEEE802154_MAC_STATE_DEVICE;
         }
         if (ctx && mac->cbs.mlme_associate_confirm) {
