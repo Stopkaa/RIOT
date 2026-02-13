@@ -55,7 +55,7 @@ static void _tx_finish(ieee802154_mac_t *mac, ieee802154_mac_indirect_q_t *indir
 
 void ieee802154_mac_tick(ieee802154_mac_t *mac)
 {
-    mutex_lock(&mac->submac_lock);
+    mutex_lock(&mac->indirect_q.lock);
     mac->indirect_q.tick++;
     if (mac->assoc_pending &&
         ieee802154_mac_frame_is_expired(mac->indirect_q.tick, mac->assoc_deadline_tick)) {

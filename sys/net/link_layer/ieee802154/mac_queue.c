@@ -299,14 +299,15 @@ static int _enqueue_data_tx(ieee802154_mac_t *mac,
     return 0;
 }
 
-int ieee802154_mac_indirectq_search_slot(ieee802154_mac_t *mac,
+static int _indirectq_search_slot_locked(ieee802154_mac_t *mac,
                                          ieee802154_addr_mode_t dst_mode,
                                          const void *dst_addr)
 {
     ieee802154_mac_indirect_q_t *indirect_q = &mac->indirect_q;
     if (!dst_addr) {
         for (int i = 0; i < IEEE802154_MAC_TX_INDIRECTQ_SIZE; i++) {
-            if (!indirect_q->q[i].has_dst_addr) {
+            if (!indirect_q->q[i].has_dst_addr &&
+                !ieee802154_mac_tx_empty(&indirect_q->q[i])) {
                 return i;
             }
         }
@@ -347,11 +348,22 @@ int ieee802154_mac_indirectq_search_slot(ieee802154_mac_t *mac,
     return -1;
 }
 
-int ieee802154_mac_indirectq_get_slot(ieee802154_mac_t *mac,
+int ieee802154_mac_indirectq_search_slot(ieee802154_mac_t *mac,
+                                         ieee802154_addr_mode_t dst_mode,
+                                         const void *dst_addr)
+{
+    int slot;
+    mutex_lock(&mac->indirect_q.lock);
+    slot = _indirectq_search_slot_locked(mac, dst_mode, dst_addr);
+    mutex_unlock(&mac->indirect_q.lock);
+    return slot;
+}
+
+static int _indirectq_get_slot_locked(ieee802154_mac_t *mac,
                                       ieee802154_addr_mode_t dst_mode,
                                       const void *dst_addr)
 {
-    int slot = ieee802154_mac_indirectq_search_slot(mac, dst_mode, dst_addr);
+    int slot = _indirectq_search_slot_locked(mac, dst_mode, dst_addr);
     ieee802154_mac_indirect_q_t *indirect_q = &mac->indirect_q;
 
     if (slot >= 0) {
@@ -384,6 +396,17 @@ int ieee802154_mac_indirectq_get_slot(ieee802154_mac_t *mac,
     return slot;
 }
 
+int ieee802154_mac_indirectq_get_slot(ieee802154_mac_t *mac,
+                                      ieee802154_addr_mode_t dst_mode,
+                                      const void *dst_addr)
+{
+    int slot;
+    mutex_lock(&mac->indirect_q.lock);
+    slot = _indirectq_get_slot_locked(mac, dst_mode, dst_addr);
+    mutex_unlock(&mac->indirect_q.lock);
+    return slot;
+}
+
 int ieee802154_mac_map_push(ieee802154_mac_t *mac,
                             uint8_t frame_type,
                             ieee802154_addr_mode_t src_mode,
@@ -395,18 +418,22 @@ int ieee802154_mac_map_push(ieee802154_mac_t *mac,
                             bool ack_req,
                             bool indirect)
 {
-    int slot = ieee802154_mac_indirectq_get_slot(mac, dst_mode, dst_addr);
+    mutex_lock(&mac->indirect_q.lock);
+    int slot = _indirectq_get_slot_locked(mac, dst_mode, dst_addr);
     if (slot < 0) {
+        mutex_unlock(&mac->indirect_q.lock);
         return -ENOBUFS;
     }
+
     int res = _enqueue_data_tx(mac, frame_type, &mac->indirect_q.q[slot], src_mode,
                                dst_mode, dst_panid, dst_addr, msdu,
                                msdu_handle, ack_req, indirect);
     if (res < 0) {
         DEBUG("Enqueue Data failed: %d (%s)\n", res, strerror(-res));
+        mutex_unlock(&mac->indirect_q.lock);
         return res;
     }
-    DEBUG("Frame enqueued \n");
+    mutex_unlock(&mac->indirect_q.lock);
     return 0;
 }
 
