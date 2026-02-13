@@ -11,9 +11,11 @@
 #include "mac_internal_priv.h"
 #include "mac_pib.h"
 #include "net/ieee802154/mac.h"
+#include "net/ieee802154.h"
 #include "net/eui_provider.h"
+#include "ztimer.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static int _mac_tx_request(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mode,
@@ -51,6 +53,7 @@ static int _mac_fsm_process_ev(ieee802154_mac_t *mac, ieee802154_mac_fsm_ev_t ev
 
 static const char *const _mac_fsm_ev_str[] = {
     [IEEE802154_MAC_FSM_EV_SCAN_START] = "SCAN_START",
+    [IEEE802154_MAC_FSM_EV_SCAN_TIMER] = "SCAN_TIMER",
     [IEEE802154_MAC_FSM_EV_SCAN_DONE] = "SCAN_DONE",
     [IEEE802154_MAC_FSM_EV_ASSOC_REQ_RX] = "ASSOC_REQ_RX",
     [IEEE802154_MAC_FSM_EV_ASSOC_RES_RX] = "ASSOC_RES_RX",
@@ -112,8 +115,13 @@ static int _mac_enqueue_and_tx(ieee802154_mac_t *mac, const ieee802154_mac_fsm_c
 
 static int _mac_data_request(ieee802154_mac_t *mac, const ieee802154_mac_fsm_ctx_t *ctx)
 {
-    return _mac_enqueue_and_tx(mac, ctx, ctx->src_mode, IEEE802154_FCF_TYPE_DATA,
-                               ctx->msdu, &ctx->msdu_handle, ctx->ack_req, ctx->indirect);
+    int res = _mac_enqueue_and_tx(mac, ctx, ctx->src_mode, IEEE802154_FCF_TYPE_DATA,
+                                  ctx->msdu, &ctx->msdu_handle, ctx->ack_req, ctx->indirect);
+    if ((res >= 0) && ctx->indirect && mac->is_coordinator) {
+        /* Ensure coordinator stays in RX to receive polls after queuing */
+        (void)ieee802154_set_rx(&mac->submac);
+    }
+    return res;
 }
 
 static int _mac_assoc_request(ieee802154_mac_t *mac, const ieee802154_mac_fsm_ctx_t *ctx)
@@ -145,8 +153,9 @@ static int _mac_assoc_request(ieee802154_mac_t *mac, const ieee802154_mac_fsm_ct
     ieee802154_pib_value_t wait;
     ieee802154_mac_mlme_get(mac, IEEE802154_PIB_RESPONSE_WAIT_TIME, &wait);
     uint32_t duration_us = (uint32_t)wait.v.u8 * 60U * mac->sym_us;
-    uint16_t ticks = (uint16_t)((duration_us + IEEE802154_MAC_TICK_INTERVAL_US - 1U) /
-                                IEEE802154_MAC_TICK_INTERVAL_US);
+    uint32_t duration_ms = (duration_us + 999U) / 1000U;
+    uint16_t ticks = (uint16_t)((duration_ms + IEEE802154_MAC_TICK_INTERVAL_MS - 1U) /
+                                IEEE802154_MAC_TICK_INTERVAL_MS);
     if (ticks == 0) {
         ticks = 1;
     }

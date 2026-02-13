@@ -78,8 +78,8 @@ void ieee802154_mac_tick(ieee802154_mac_t *mac)
             _tx_finish(mac, &mac->indirect_q, i, -ETIMEDOUT);
         }
     }
-    ztimer_set(ZTIMER_USEC, &mac->tick, (uint32_t)IEEE802154_MAC_TICK_INTERVAL_US);
-    mutex_unlock(&mac->submac_lock);
+    ztimer_set(ZTIMER_MSEC, &mac->tick, (uint32_t)IEEE802154_MAC_TICK_INTERVAL_MS);
+    mutex_unlock(&mac->indirect_q.lock);
 }
 
 void ieee802154_mac_tx_finish_current(ieee802154_mac_t *mac, int status)

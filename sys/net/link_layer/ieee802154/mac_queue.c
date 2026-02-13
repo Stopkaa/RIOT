@@ -120,16 +120,17 @@ bool ieee802154_indirectq_empty(const ieee802154_mac_indirect_q_t *indirect_q)
 
 uint16_t ieee802154_indirect_get_deadline(ieee802154_mac_t *mac)
 {
-    uint16_t unit_period_us = IEEE802154_MAC_FRAME_TIMEOUT * mac->sym_us;
+    uint32_t unit_period_us = (uint32_t)IEEE802154_MAC_FRAME_TIMEOUT * (uint32_t)mac->sym_us;
     /* round up to handle too early timeouts */
-    uint16_t unit_period_ticks =
-        (unit_period_us + IEEE802154_MAC_TICK_INTERVAL_US - 1U) / IEEE802154_MAC_TICK_INTERVAL_US;
-    return (mac->indirect_q.tick + (unit_period_ticks * IEEE802154_MAC_FRAME_TIMEOUT));
+    uint32_t unit_period_ms = (unit_period_us + 999U) / 1000U;
+    uint16_t unit_period_ticks = (uint16_t)(
+        (unit_period_ms + IEEE802154_MAC_TICK_INTERVAL_MS - 1U) / IEEE802154_MAC_TICK_INTERVAL_MS);
+    return (mac->indirect_q.tick + unit_period_ticks);
 }
 
 bool ieee802154_mac_frame_is_expired(uint16_t now_tick, uint16_t deadline_tick)
 {
-    return (bool)((now_tick - deadline_tick) >= 0);
+    return ((int16_t)(now_tick - deadline_tick)) >= 0;
 }
 
 void ieee802154_mac_indirect_fp_update(ieee802154_mac_t *mac,

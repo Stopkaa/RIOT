@@ -120,7 +120,7 @@ void ieee802154_init_mac_internal(ieee802154_mac_t *mac)
     mac->ack_timer.arg = mac;
     mac->scan_timer.callback = mac->cbs.scan_timer_request;
     mac->scan_timer.arg = mac;
-    ztimer_set(ZTIMER_USEC, &mac->tick, (uint32_t)IEEE802154_MAC_TICK_INTERVAL_US);
+    ztimer_set(ZTIMER_MSEC, &mac->tick, (uint32_t)IEEE802154_MAC_TICK_INTERVAL_MS);
     mutex_unlock(&mac->submac_lock);
 }
 
