@@ -705,19 +705,11 @@ static int _mac_fsm_process_ev(ieee802154_mac_t *mac, ieee802154_mac_fsm_ev_t ev
         pib_value.type = IEEE802154_PIB_TYPE_NUI16;
         pib_value.v.short_addr = short_addr;
         ieee802154_mac_mlme_set_request(mac, IEEE802154_PIB_SHORT_ADDR, &pib_value);
-        int res = ieee802154_radio_config_addr_filter(&mac->submac.dev,IEEE802154_AF_PAN_COORD, (void*) &coord);
-        if (res == -ENOTSUP)
-        {
-            DEBUG("IEEE802154 MAC: starting coordinator in SoftMode bc PAN_COORD is not supported in hardware\n");
-            res = ieee802154_radio_set_frame_filter_mode(&mac->submac.dev, IEEE802154_FILTER_PROMISC);
-            if (res < 0)
-            {
-                return res;
-            }
-            mac->coord_softmode = true;
-        }
-        else if (res >= 0) {
-            mac->coord_softmode = false;
+        int res = ieee802154_radio_config_addr_filter(&mac->submac.dev, IEEE802154_AF_PAN_COORD,
+                                                      (void *)&coord);
+        if (res == -ENOTSUP) {
+            DEBUG("IEEE802154 MAC: PAN_COORD not supported\n");
+            return res;
         }
         mac->is_coordinator = true;
         mac->cbs.rx_request(mac);

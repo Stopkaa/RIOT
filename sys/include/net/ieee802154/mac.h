@@ -495,7 +495,6 @@ typedef struct {
  */
 typedef struct {
     bool is_coordinator;
-    bool coord_softmode;
     ieee802154_mac_state_t state;
     ieee802154_mac_state_t state_history;
     ieee802154_dev_type_t dev_type;
