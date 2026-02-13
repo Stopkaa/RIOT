@@ -13,6 +13,7 @@
 #include "net/ieee802154/radio.h"
 #include "net/l2util.h"
 #include "shell.h"
+#include "ztimer.h"
 
 #include "init_devs.h"
 #define IEEE802154_MAC_TEST_BUF_SIZE (16U)
@@ -78,12 +79,18 @@ static int txtsnd(int argc, char **argv);
 static int assoc_req_cmd(int argc, char **argv);
 static int assoc_rsp_cmd(int argc, char **argv);
 static int assoc_auto_cmd(int argc, char **argv);
+static int set_panid_cmd(int argc, char **argv);
+static int set_coord_cmd(int argc, char **argv);
+static int set_coord_short_cmd(int argc, char **argv);
 static const shell_command_t shell_commands[] = {
     { "print_addr", "Print IEEE 802.15.4 short and extended address", print_addr },
     { "txtsnd", "Send payload: txtsnd <addr> <len> <indirect (true/false)>", txtsnd },
     { "poll", "MLME-POLL: poll <long_addr> (used if no coord short)", poll },
     { "scan", "Active scan: scan <duration_us> <ch1> [ch2 ...]", scan },
     { "start", "Start coordinator: start <channel> <panid> [ssid]", start },
+    { "set_panid", "Set PAN ID: set_panid <0xNNNN>", set_panid_cmd },
+    { "set_coord", "Set coordinator ext addr: set_coord <xx:.. (8 bytes)>", set_coord_cmd },
+    { "set_coord_short", "Set coordinator short addr: set_coord_short <0xNNNN>", set_coord_short_cmd },
     { "assoc_req", "MLME-ASSOC.req: assoc_req <short|long> <addr> <panid> <channel>",
       assoc_req_cmd },
     { "assoc_rsp", "MLME-ASSOC.resp: assoc_rsp <short|long> <addr> <status> <short_addr>",
@@ -424,6 +431,11 @@ static int start(int argc, char **argv)
     pib_value.v.short_addr = byteorder_htons(0x0000);
     ieee802154_mac_mlme_set_request(&mac, IEEE802154_PIB_SHORT_ADDR, &pib_value);
 
+    /* Keep RX on when idle for polling device/coordinator interaction */
+    pib_value.type = IEEE802154_PIB_TYPE_BOOL;
+    pib_value.v.b = true;
+    ieee802154_mac_mlme_set_request(&mac, IEEE802154_PIB_RX_ON_WHEN_IDLE, &pib_value);
+
     if (argc == 4) {
         size_t ssid_len = strlen(argv[3]);
         if (ssid_len > sizeof(beacon_payload)) {
@@ -485,6 +497,54 @@ static int poll(int argc, char **argv)
     return 0;
 }
 
+static int set_panid_cmd(int argc, char **argv)
+{
+    if (argc != 2) {
+        puts("Usage: set_panid <0xNNNN>\n");
+        return 1;
+    }
+    uint16_t panid = (uint16_t)strtoul(argv[1], NULL, 0);
+    ieee802154_pib_value_t pib_value;
+    pib_value.type = IEEE802154_PIB_TYPE_U16;
+    pib_value.v.u16 = panid;
+    ieee802154_mac_mlme_set_request(&mac, IEEE802154_PIB_PAN_ID, &pib_value);
+    printf("panid set to 0x%04x\n", panid);
+    return 0;
+}
+
+static int set_coord_cmd(int argc, char **argv)
+{
+    if (argc != 2) {
+        puts("Usage: set_coord <xx:.. (8 bytes)>\n");
+        return 1;
+    }
+    ieee802154_ext_addr_t ext;
+    if (!l2util_addr_from_str(argv[1], ext.uint8)) {
+        puts("invalid long addr\n");
+        return 1;
+    }
+    ieee802154_pib_value_t pib_value;
+    pib_value.type = IEEE802154_PIB_TYPE_EUI64;
+    pib_value.v.ext_addr = ext;
+    ieee802154_mac_mlme_set_request(&mac, IEEE802154_PIB_COORD_EXTENDED_ADDRESS, &pib_value);
+    printf("coord ext addr set to %s\n", argv[1]);
+    return 0;
+}
+
+static int set_coord_short_cmd(int argc, char **argv)
+{
+    if (argc != 2) {
+        puts("Usage: set_coord_short <0xNNNN>\n");
+        return 1;
+    }
+    uint16_t short_addr = (uint16_t)strtoul(argv[1], NULL, 0);
+    ieee802154_pib_value_t pib_value;
+    pib_value.type = IEEE802154_PIB_TYPE_NUI16;
+    pib_value.v.short_addr = byteorder_htons(short_addr);
+    ieee802154_mac_mlme_set_request(&mac, IEEE802154_PIB_COORD_SHORT_ADDRESS, &pib_value);
+    printf("coord short addr set to 0x%04x\n", short_addr);
+    return 0;
+}
 static int print_addr(int argc, char **argv)
 {
     (void)argc;
