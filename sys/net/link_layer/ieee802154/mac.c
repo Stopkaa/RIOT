@@ -101,11 +101,16 @@ int ieee802154_mac_mlme_scan_request(ieee802154_mac_t *mac, ieee802154_scan_type
 int ieee802154_mlme_start_request(ieee802154_mac_t *mac,
                                   uint16_t channel)
 {
-    (void)channel;
+    int res = ieee802154_set_channel_number(&mac->submac, channel);
+    if (res < 0) {
+        DEBUG("IEEE802154 MAC: failed to set coordinator channel %u\n", channel);
+        return res;
+    }
 
     if (ieee802154_mac_fsm_request(mac, IEEE802154_MAC_FSM_EV_COORD_START, NULL) < 0)
     {
         DEBUG("IEEE802154 MAC: failed to start as coordinator\n");
+        return -EBUSY;
     }
     return 0;
 }
