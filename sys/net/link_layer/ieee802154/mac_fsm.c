@@ -279,13 +279,6 @@ static ieee802154_mac_state_t _mac_fsm_state_idle(ieee802154_mac_t *mac,
         }
         return IEEE802154_MAC_STATE_IDLE;
     case IEEE802154_MAC_FSM_EV_RX_CMD_BEACON_REQ:
-        if (ctx) {
-            _mac_enqueue_beacon(mac);
-            const void *src_addr = (ctx->src_mode == IEEE802154_ADDR_MODE_SHORT)
-                                    ? (const void *)ctx->src
-                                    : (const void *)&ctx->src_addr;
-            (void)_mac_tx_request(mac, ctx->src_mode, src_addr);
-        }
         return IEEE802154_MAC_STATE_IDLE;
     case IEEE802154_MAC_FSM_EV_MCPS_DATA_REQ:
         if (ctx) {
