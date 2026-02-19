@@ -568,8 +568,16 @@ static int _config_addr_filter(ieee802154_dev_t *hal, ieee802154_af_cmd_t cmd, c
     }
     break;
     case IEEE802154_AF_PAN_COORD:
-        mutex_unlock(&dev->lock);
-        return -ENOTSUP;
+        if (value == NULL) {
+            mutex_unlock(&dev->lock);
+            return -EINVAL;
+        }
+        uint8_t tmp = at86rf2xx_reg_read(dev, AT86RF2XX_REG__CSMA_SEED_1);
+        bool pan_coord = *((const bool *)value);
+        tmp = pan_coord ? (tmp | AT86RF2XX_CSMA_SEED_1__AACK_I_AM_COORD)
+                        : (tmp & ~AT86RF2XX_CSMA_SEED_1__AACK_I_AM_COORD);
+        at86rf2xx_reg_write(dev, AT86RF2XX_REG__CSMA_SEED_1, tmp);
+        break;
     }
 
     mutex_unlock(&dev->lock);
