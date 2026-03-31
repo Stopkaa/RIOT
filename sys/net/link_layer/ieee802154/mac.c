@@ -16,10 +16,10 @@
 #include <string.h>
 #include <errno.h>
 
-#include "isrpipe.h"
 #include "net/ieee802154/mac.h"
-#include "mac_internal_priv.h"
+#include "mac_internal.h"
 #include "mac_pib.h"
+#include "mac_fsm.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"

@@ -8,8 +8,10 @@
 #include "mutex.h"
 #include "byteorder.h"
 
-#include "mac_internal_priv.h"
+#include "mac_fsm.h"
 #include "mac_pib.h"
+#include "mac_queue.h"
+#include "mac_tx.h"
 #include "net/ieee802154/mac.h"
 #include "net/ieee802154.h"
 #include "net/eui_provider.h"

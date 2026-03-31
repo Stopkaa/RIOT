@@ -8,7 +8,8 @@
 #include "ztimer.h"
 
 #include "mac_pib.h"
-#include "mac_internal_priv.h"
+#include "mac_tx.h"
+#include "mac_queue.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"

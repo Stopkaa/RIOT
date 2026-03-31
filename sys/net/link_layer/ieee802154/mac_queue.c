@@ -5,7 +5,7 @@
 
 #include <string.h>
 
-#include "mac_internal_priv.h"
+#include "mac_queue.h"
 #include "mac_pib.h"
 
 #define ENABLE_DEBUG 0

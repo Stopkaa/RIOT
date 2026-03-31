@@ -16,8 +16,9 @@
 #include "ztimer.h"
 #include "mutex.h"
 
-#include "mac_internal_priv.h"
+#include "mac_internal.h"
 #include "mac_pib.h"
+#include "mac_tx.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
@@ -93,8 +94,8 @@ void ieee802154_init_mac_internal(ieee802154_mac_t *mac)
         sym_us = IEEE802154_MR_OFDM_SYMBOL_TIME_US;
         break;
     default:
-        /* TODO: check for correct symbol times */
-        // MR-OQPSK / ASK / BPSK etc
+        /* TODO: check for correct symbol times
+                 MR-OQPSK / ASK / BPSK etc */
         sym_us = IEEE802154_SYMBOL_TIME_US; /* fallback rn */
         break;
     }
