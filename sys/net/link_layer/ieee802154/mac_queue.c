@@ -139,12 +139,11 @@ void ieee802154_mac_indirect_fp_update(ieee802154_mac_t *mac,
                                        bool pending)
 {
 #ifdef IEEE802154_MAC_INDIRECT_ENABLE
-    ieee802154_dev_t *dev = &mac->submac.dev;
 #  ifdef IEEE802154_MAC_HAS_SRC_ADDR_MATCH
     if (dst_mode == IEEE802154_ADDR_MODE_SHORT) {
         if (dst_addr) {
             const network_uint16_t *short_addr = (const network_uint16_t *)dst_addr;
-            ieee802154_radio_config_src_address_match(dev,
+            ieee802154_submac_config_src_address_match(&mac->submac,
                                                       pending ? IEEE802154_SRC_MATCH_SHORT_ADD
                                                               : IEEE802154_SRC_MATCH_SHORT_CLEAR,
                                                       short_addr);
@@ -153,7 +152,7 @@ void ieee802154_mac_indirect_fp_update(ieee802154_mac_t *mac,
     else if (dst_mode == IEEE802154_ADDR_MODE_EXTENDED) {
         const ieee802154_ext_addr_t *ext = (const ieee802154_ext_addr_t *)dst_addr;
         if (ext) {
-            ieee802154_radio_config_src_address_match(dev,
+            ieee802154_submac_config_src_address_match(&mac->submac,
                                                       pending ? IEEE802154_SRC_MATCH_EXT_ADD
                                                               : IEEE802154_SRC_MATCH_EXT_CLEAR,
                                                       ext);
@@ -166,10 +165,10 @@ void ieee802154_mac_indirect_fp_update(ieee802154_mac_t *mac,
     if (!pending) {
         any_pending = !ieee802154_indirectq_empty(&mac->indirect_q);
     }
-    ieee802154_radio_config_src_address_match(dev, IEEE802154_SRC_MATCH_EN, &any_pending);
+    ieee802154_submac_config_src_address_match(&mac->submac, IEEE802154_SRC_MATCH_EN, &any_pending);
 #  endif
 #else
-    void)mac;
+    (void)mac;
     (void)dst_mode;
     (void)dst_addr;
     (void)pending;
