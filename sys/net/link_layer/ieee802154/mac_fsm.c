@@ -205,6 +205,16 @@ static int _mac_assoc_response(ieee802154_mac_t *mac, const ieee802154_mac_fsm_c
         src_mode = IEEE802154_ADDR_MODE_SHORT;
     }
 
+    DEBUG("IEEE802154 MAC: queue ASSOC_RES indirect dst_mode=%u short_addr=0x%04x status=%u\n",
+          (unsigned)ctx->dst_mode, ctx->assoc_short_addr, (unsigned)ctx->assoc_status);
+
+    if ((ctx->assoc_status == IEEE802154_ASSOC_STATUS_SUCCESS) &&
+        (ctx->dst_mode == IEEE802154_ADDR_MODE_EXTENDED)) {
+        ieee802154_mac_assoc_update(mac,
+                                    (const ieee802154_ext_addr_t *)ctx->data_dst_addr,
+                                    byteorder_htons(ctx->assoc_short_addr));
+    }
+
     /* Association response should be sent indirectly after a data request */
     return _mac_enqueue_and_tx(mac, ctx, src_mode, IEEE802154_FCF_TYPE_MACCMD,
                                &mac->cmd, &handle, true, true);
@@ -782,6 +792,13 @@ static int _mac_tx_request(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mod
     }
 
     ieee802154_mac_tx_desc_t *d = ieee802154_mac_tx_peek(txq);
+#if CONFIG_IEEE802154_MAC_INDIRECT_DIAG
+    ieee802154_mac_indirect_diag_record(IEEE802154_MAC_INDIRECT_DIAG_POLL_HIT,
+                                        slot, 0, txq->cnt, txq->cnt,
+                                        d->handle, d->type, d->tx_state,
+                                        d->deadline_tick, mac->indirect_q.tick,
+                                        mac->indirect_q.free_mask);
+#endif
     mac->indirect_q.current_slot = slot;
     mac->indirect_q.current_txq = txq;
     d->tx_state = IEEE802154_TX_STATE_IN_PROGRESS;

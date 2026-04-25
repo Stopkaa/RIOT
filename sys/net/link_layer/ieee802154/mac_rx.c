@@ -4,12 +4,14 @@
  */
 
 #include <string.h>
+#include <errno.h>
 
 #include "mutex.h"
 #include "byteorder.h"
 
 #include "net/ieee802154/mac.h"
 #include "mac_fsm.h"
+#include "mac_queue.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
@@ -143,7 +145,7 @@ static bool _mac_rx_prepare_ctx(ieee802154_mac_t *mac, iolist_t *buf, int len,
 void ieee802154_mac_rx_process(ieee802154_mac_t *mac, iolist_t *buf)
 {
     uint8_t frame_type;
-    ieee802154_mac_fsm_ev_t ev;
+    ieee802154_mac_fsm_ev_t ev = 0;
     bool do_fsm = true;
     ieee802154_mac_fsm_ctx_t ctx;
     mutex_lock(&mac->submac_lock);
@@ -158,6 +160,7 @@ void ieee802154_mac_rx_process(ieee802154_mac_t *mac, iolist_t *buf)
     buf->iol_len = len;
     (void)ieee802154_read_frame(&mac->submac, buf->iol_base, buf->iol_len, &info);
     mutex_unlock(&mac->submac_lock);
+    frame_type = ((const uint8_t *)buf->iol_base)[0] & IEEE802154_FCF_TYPE_MASK;
     if (!_mac_rx_prepare_ctx(mac, buf, len, &info, &ctx, &ev, &frame_type, &do_fsm)) {
         return;
     }

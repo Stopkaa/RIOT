@@ -43,37 +43,89 @@ extern "C" {
 #define IEEE802154_SCAN_BEACON_PAYLOAD_MAX  (IEEE802154_FRAME_LEN_MAX)
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_TXQ_LEN
+#define CONFIG_IEEE802154_MAC_TXQ_LEN   (4U)
+#endif
 #ifndef IEEE802154_MAC_TXQ_LEN
-#define IEEE802154_MAC_TXQ_LEN   (4U)
+#define IEEE802154_MAC_TXQ_LEN   CONFIG_IEEE802154_MAC_TXQ_LEN
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_TICK_INTERVAL_MS
+#define CONFIG_IEEE802154_MAC_TICK_INTERVAL_MS     (1U)
+#endif
 #ifndef IEEE802154_MAC_TICK_INTERVAL_MS
-#define IEEE802154_MAC_TICK_INTERVAL_MS     (1U)
+#define IEEE802154_MAC_TICK_INTERVAL_MS     CONFIG_IEEE802154_MAC_TICK_INTERVAL_MS
 #endif
 
 /* In Symbols  then the timeout is symbol*symboltime in 2,4ghz this is 1s*/
+#ifndef CONFIG_IEEE802154_MAC_FRAME_TIMEOUT
+#define CONFIG_IEEE802154_MAC_FRAME_TIMEOUT        (125000U)
+#endif
 #ifndef IEEE802154_MAC_FRAME_TIMEOUT
-#define IEEE802154_MAC_FRAME_TIMEOUT        (125000U)
+#define IEEE802154_MAC_FRAME_TIMEOUT        CONFIG_IEEE802154_MAC_FRAME_TIMEOUT
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_TX_INDIRECTQ_SIZE
+#define CONFIG_IEEE802154_MAC_TX_INDIRECTQ_SIZE     (4)
+#endif
 #ifndef IEEE802154_MAC_TX_INDIRECTQ_SIZE
-#define IEEE802154_MAC_TX_INDIRECTQ_SIZE     (4)
+#define IEEE802154_MAC_TX_INDIRECTQ_SIZE     CONFIG_IEEE802154_MAC_TX_INDIRECTQ_SIZE
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_INDIRECT_DIAG
+#define CONFIG_IEEE802154_MAC_INDIRECT_DIAG  0
+#endif
+
+#if CONFIG_IEEE802154_MAC_INDIRECT_DIAG
+/**
+ * @brief Dump recorded indirect queue diagnostic events.
+ */
+void ieee802154_mac_indirect_diag_dump(void);
+
+/**
+ * @brief Dump up to @p max_events recorded indirect queue diagnostic events.
+ */
+void ieee802154_mac_indirect_diag_dump_max(uint16_t max_events);
+
+/**
+ * @brief Clear recorded indirect queue diagnostic events.
+ */
+void ieee802154_mac_indirect_diag_reset(void);
+#endif
+
+#ifndef CONFIG_IEEE802154_MAC_ASSOC_TABLE_SIZE
+#define CONFIG_IEEE802154_MAC_ASSOC_TABLE_SIZE      (IEEE802154_MAC_TX_INDIRECTQ_SIZE)
+#endif
+#ifndef IEEE802154_MAC_ASSOC_TABLE_SIZE
+#define IEEE802154_MAC_ASSOC_TABLE_SIZE      CONFIG_IEEE802154_MAC_ASSOC_TABLE_SIZE
+#endif
+
+#ifndef CONFIG_IEEE802154_MAC_BASE_SLOT_DURATION
+#define CONFIG_IEEE802154_MAC_BASE_SLOT_DURATION   (60U)
+#endif
 #ifndef IEEE802154_MAC_BASE_SLOT_DURATION
-#define IEEE802154_MAC_BASE_SLOT_DURATION   (60U)
+#define IEEE802154_MAC_BASE_SLOT_DURATION   CONFIG_IEEE802154_MAC_BASE_SLOT_DURATION
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_MAX_LOST_BEACONS
+#define CONFIG_IEEE802154_MAC_MAX_LOST_BEACONS   (4U)
+#endif
 #ifndef IEEE802154_MAC_MAX_LOST_BEACONS
-#define IEEE802154_MAC_MAX_LOST_BEACONS   (4U)
+#define IEEE802154_MAC_MAX_LOST_BEACONS   CONFIG_IEEE802154_MAC_MAX_LOST_BEACONS
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_MIN_CAP_LENGTH
+#define CONFIG_IEEE802154_MAC_MIN_CAP_LENGTH   (440U)
+#endif
 #ifndef IEEE802154_MAC_MIN_CAP_LENGTH
-#define IEEE802154_MAC_MIN_CAP_LENGTH   (440U)
+#define IEEE802154_MAC_MIN_CAP_LENGTH   CONFIG_IEEE802154_MAC_MIN_CAP_LENGTH
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_NUM_SUPERFRAME_SLOTS
+#define CONFIG_IEEE802154_MAC_NUM_SUPERFRAME_SLOTS     (16)
+#endif
 #ifndef IEEE802154_MAC_NUM_SUPERFRAME_SLOTS
-#define IEEE802154_MAC_NUM_SUPERFRAME_SLOTS     (16)
+#define IEEE802154_MAC_NUM_SUPERFRAME_SLOTS     CONFIG_IEEE802154_MAC_NUM_SUPERFRAME_SLOTS
 #endif
 
 #ifndef IEEE802154_MAC_BASE_SUPERFRAME_DURATION
@@ -492,6 +544,15 @@ typedef struct {
 } ieee802154_mac_indirect_q_t;
 
 /**
+ * @brief IEEE 802.15.4 association address alias entry.
+ */
+typedef struct {
+    ieee802154_ext_addr_t ext_addr;
+    ieee802154_short_addr_t short_addr;
+    bool valid;
+} ieee802154_mac_assoc_entry_t;
+
+/**
  * @brief IEEE 802.15.4 MAC descriptor
  */
 typedef struct {
@@ -509,6 +570,7 @@ typedef struct {
     uint8_t cmd_buf[IEEE802154_FRAME_LEN_MAX];                  /**< receiving buf */
     iolist_t cmd;
     ieee802154_mac_indirect_q_t indirect_q;
+    ieee802154_mac_assoc_entry_t assoc_table[IEEE802154_MAC_ASSOC_TABLE_SIZE];
     uint16_t sym_us;
     ieee802154_mlme_scan_req_t *scan_req;
     bool scan_active;
