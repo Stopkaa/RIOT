@@ -792,13 +792,6 @@ static int _mac_tx_request(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mod
     }
 
     ieee802154_mac_tx_desc_t *d = ieee802154_mac_tx_peek(txq);
-#if CONFIG_IEEE802154_MAC_INDIRECT_DIAG
-    ieee802154_mac_indirect_diag_record(IEEE802154_MAC_INDIRECT_DIAG_POLL_HIT,
-                                        slot, 0, txq->cnt, txq->cnt,
-                                        d->handle, d->type, d->tx_state,
-                                        d->deadline_tick, mac->indirect_q.tick,
-                                        mac->indirect_q.free_mask);
-#endif
     mac->indirect_q.current_slot = slot;
     mac->indirect_q.current_txq = txq;
     d->tx_state = IEEE802154_TX_STATE_IN_PROGRESS;
