@@ -436,8 +436,7 @@ static ieee802154_mac_state_t _mac_fsm_state_coordinator(ieee802154_mac_t *mac,
             ztimer_sleep(ZTIMER_USEC,
                          (uint32_t)IEEE802154_SIFS_SYMS * (uint32_t)mac->sym_us);
             int res = _mac_tx_request(mac, ctx->src_mode, src_addr);
-            if (res < 0)
-            {
+            if (res < 0) {
                 DEBUG("IEEE802154 MAC: failed to send data in response to data request status=%d\n", res);
             }
             if (mac->cbs.rx_request) {
