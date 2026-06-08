@@ -133,6 +133,16 @@ void ieee802154_mac_indirect_diag_reset(void);
                                                    IEEE802154_MAC_NUM_SUPERFRAME_SLOTS)
 #endif
 
+#ifndef CONFIG_IEEE802154_MAC_RX_RETRY_MAX
+#define CONFIG_IEEE802154_MAC_RX_RETRY_MAX   (4U)
+#endif
+#ifndef IEEE802154_MAC_RX_RETRY_MAX
+#define IEEE802154_MAC_RX_RETRY_MAX   CONFIG_IEEE802154_MAC_RX_RETRY_MAX
+#endif
+
+
+
+
 /**
  * @brief IEEE 802.15.4 extended adress
  */
@@ -581,6 +591,8 @@ typedef struct {
     uint16_t assoc_deadline_tick;
     bool poll_rx_active;
     uint16_t poll_rx_deadline;
+    uint8_t rx_retry_count;
+    bool rx_retry_pending;
 } ieee802154_mac_t;
 
 typedef enum {
@@ -620,9 +632,8 @@ void ieee802154_mac_tick(ieee802154_mac_t *mac);
  * @brief Process the active scan timer in thread context.
  */
 void ieee802154_mac_scan_timer_process(ieee802154_mac_t *mac);
-/**
- * @brief Process the association response timer in thread context.
- */
+
+void ieee802154_mac_rx_request_process(ieee802154_mac_t *mac);
 
 /**
  * @brief Init the IEEE 802.15.4 MAC

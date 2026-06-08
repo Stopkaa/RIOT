@@ -187,13 +187,6 @@ config IEEE802154_MAC_TX_INDIRECTQ_SIZE
         Each slot contains IEEE802154_MAC_TXQ_LEN frames. The upper bound is
         limited by the 32-bit free-mask used by the queue implementation.
 
-config IEEE802154_MAC_INDIRECT_DIAG
-    bool "Print IEEE802.15.4 MAC indirect queue diagnostics"
-    help
-        Print a short line when indirect frames are enqueued, selected for
-        delivery by a poll, and completed, requeued, or expired. This is meant
-        for debugging sleepy-device indirect transmission timing.
-
 config IEEE802154_MAC_ASSOC_TABLE_SIZE
     int "IEEE802.15.4 MAC association alias table size"
     default IEEE802154_MAC_TX_INDIRECTQ_SIZE

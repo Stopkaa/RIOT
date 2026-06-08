@@ -12,6 +12,7 @@
 #include "net/ieee802154/mac.h"
 #include "mac_fsm.h"
 #include "mac_queue.h"
+#include "mac_pib.h"
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
@@ -162,6 +163,17 @@ void ieee802154_mac_rx_process(ieee802154_mac_t *mac, iolist_t *buf)
     mutex_unlock(&mac->submac_lock);
     frame_type = ((const uint8_t *)buf->iol_base)[0] & IEEE802154_FCF_TYPE_MASK;
     if (!_mac_rx_prepare_ctx(mac, buf, len, &info, &ctx, &ev, &frame_type, &do_fsm)) {
+        ieee802154_pib_value_t rx_on;
+
+        ieee802154_mac_mlme_get(mac, IEEE802154_PIB_RX_ON_WHEN_IDLE, &rx_on);
+
+        if (!rx_on.v.b) {
+            return;
+        }
+
+        if (mac->cbs.rx_request) {
+            mac->cbs.rx_request(mac);
+        }
         return;
     }
     if (do_fsm) {
@@ -174,8 +186,45 @@ void ieee802154_mac_rx_process(ieee802154_mac_t *mac, iolist_t *buf)
             mac->cbs.dealloc_request(mac, buf);
         }
     }
-    if (mac->scan_active)
-    {
+    ieee802154_pib_value_t rx_on;
+
+    ieee802154_mac_mlme_get(mac, IEEE802154_PIB_RX_ON_WHEN_IDLE, &rx_on);
+
+    if (!rx_on.v.b) {
+        return;
+    }
+
+    if (mac->cbs.rx_request) {
         mac->cbs.rx_request(mac);
     }
+}
+
+void ieee802154_mac_rx_request_process(ieee802154_mac_t *mac)
+{
+    int res = ieee802154_set_rx(&mac->submac);
+
+    if ((res == 0) || (res == -EALREADY)) {
+        mac->rx_retry_count = 0;
+        mac->rx_retry_pending = false;
+        return;
+    }
+
+    if (res == -EBUSY) {
+        if (mac->rx_retry_count < IEEE802154_MAC_RX_RETRY_MAX) {
+            mac->rx_retry_count++;
+
+            if (!mac->rx_retry_pending) {
+                mac->rx_retry_pending = true;
+
+                if (mac->cbs.rx_request) {
+                    mac->cbs.rx_request(mac->cbs.mac);
+                }
+            }
+        }
+        return;
+    }
+
+    DEBUG("IEEE802154 MAC: failed to switch to RX: %d\n", res);
+    mac->rx_retry_count = 0;
+    mac->rx_retry_pending = false;
 }
