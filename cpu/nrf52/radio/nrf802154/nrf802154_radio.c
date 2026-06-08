@@ -661,10 +661,12 @@ static int _config_addr_filter(ieee802154_dev_t *dev, ieee802154_af_cmd_t cmd, c
             nrf802154_pan_id = *pan_id;
             break;
         case IEEE802154_AF_PAN_COORD:
+        {
             bool v = false;
             memcpy(&v, value, sizeof(v));
             nrf802154_is_coordinator = v;
             break;
+        }
     }
 
     return 0;
