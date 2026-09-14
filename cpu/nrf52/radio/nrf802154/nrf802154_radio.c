@@ -29,6 +29,17 @@
 #define ENABLE_DEBUG        0
 #include "debug.h"
 
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+/**
+ * @brief   PPI channel connecting RADIO->EVENTS_ADDRESS to the MAC timer
+ *
+ */
+#  ifndef CONFIG_NRF802154_TIMESTAMP_PPI_CH
+#    define CONFIG_NRF802154_TIMESTAMP_PPI_CH   (0U)
+#  endif
+#endif /* MODULE_IEEE802154_RX_TIMESTAMP */
+
+
 #define ED_RSSISCALE        (4U)    /**< RSSI scale for internal HW value */
 #define ED_RSSIOFFS         (-92)   /**< RSSI offset for internal HW value */
 
@@ -65,6 +76,11 @@
 
 #define MAC_TIMER_CHAN_IFS  (1U)    /**< MAC timer channel for handling IFS logic */
 
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+#  define MAC_TIMER_CHAN_TS (2U)    /**< MAC timer channel for capturing RX Timestamp */
+#  define MAC_TIMER_DEV     (timer_config[NRF802154_TIMER].dev) /**< Hardware Timer */
+#endif
+
 static uint8_t rxbuf[IEEE802154_FRAME_LEN_MAX + 3]; /* len PHR + PSDU + LQI */
 static uint8_t txbuf[IEEE802154_FRAME_LEN_MAX + 3]; /* len PHR + PSDU + LQI */
 
@@ -77,6 +93,13 @@ typedef enum {
 } nrf802154_state_t;
 
 static volatile uint8_t _state;
+
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+/**
+ * @brief   Timestamp of the last received frame in ns
+ */
+static uint64_t _rx_timestamp_ns;
+#endif
 
 static uint8_t nrf802154_short_addr[IEEE802154_SHORT_ADDRESS_LEN];
 static uint8_t nrf802154_long_addr[IEEE802154_LONG_ADDRESS_LEN];
@@ -101,6 +124,9 @@ static void _power_on(void)
     if (NRF_RADIO->POWER == 0) {
         clock_hfxo_request();
         NRF_RADIO->POWER = 1;
+        if (IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)) {
+            timer_start(NRF802154_TIMER);
+        }
     }
 }
 
@@ -109,6 +135,10 @@ static void _power_off(void)
     if (NRF_RADIO->POWER == 1) {
         NRF_RADIO->POWER = 0;
         clock_hfxo_release();
+        /* the IFS period may outlive the radio being powered down */
+        if (!cfg.ifs) {
+            timer_stop(NRF802154_TIMER);
+        }
     }
 }
 
@@ -339,6 +369,9 @@ static int _read(ieee802154_dev_t *dev, void *buf, size_t max_size,
            after enabling the ADDRESS_RSSISTART short. */
         int16_t rssi_dbm = hwlqi + ED_RSSIOFFS - 1;
         radio_info->rssi = ieee802154_dbm_to_rssi(rssi_dbm);
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+        radio_info->timestamp = _rx_timestamp_ns;
+#endif
     }
     memcpy(buf, &rxbuf[1], pktlen);
 
@@ -422,7 +455,10 @@ static void _timer_cb(void *arg, int chan)
     if (chan == MAC_TIMER_CHAN_IFS) {
         cfg.ifs = false;
     }
-    timer_stop(NRF802154_TIMER);
+
+    if (!IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)) {
+        timer_stop(NRF802154_TIMER);
+    }
 }
 
 /**
@@ -457,6 +493,9 @@ void isr_radio(void)
             dev->cb(dev, IEEE802154_RADIO_INDICATION_TX_START);
         }
         else if (_state == STATE_RX) {
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+            _rx_timestamp_ns = (uint64_t)MAC_TIMER_DEV->CC[MAC_TIMER_CHAN_TS] * NS_PER_US;
+#endif
             dev->cb(dev, IEEE802154_RADIO_INDICATION_RX_START);
         }
     }
@@ -572,6 +611,16 @@ static int _request_on(ieee802154_dev_t *dev)
     NRF_RADIO->MODECNF0 |= RADIO_MODECNF0_RU_Msk;
 
     NRF_RADIO->SHORTS = DEFAULT_SHORTS;
+
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+    /* EVENTS_ADDRESS marks the end of the SFD.
+     * EVENTS_FRAMESTART was measured to fire consistently 32 us later.
+     * This is expected by the manual */
+    NRF_PPI->CH[CONFIG_NRF802154_TIMESTAMP_PPI_CH].EEP = (uint32_t)&NRF_RADIO->EVENTS_ADDRESS;
+    NRF_PPI->CH[CONFIG_NRF802154_TIMESTAMP_PPI_CH].TEP =
+                        (uint32_t)&MAC_TIMER_DEV->TASKS_CAPTURE[MAC_TIMER_CHAN_TS];
+    NRF_PPI->CHENSET = (1UL << CONFIG_NRF802154_TIMESTAMP_PPI_CH);
+#endif
 
     /* enable interrupts */
     NVIC_EnableIRQ(RADIO_IRQn);
@@ -766,7 +815,8 @@ static const ieee802154_radio_ops_t nrf802154_ops = {
           | IEEE802154_CAP_IRQ_TX_START
           | IEEE802154_CAP_IRQ_TX_DONE
           | IEEE802154_CAP_IRQ_CCA_DONE
-          | IEEE802154_CAP_PHY_OQPSK,
+          | IEEE802154_CAP_PHY_OQPSK
+          | (IS_USED(MODULE_IEEE802154_RX_TIMESTAMP) ? IEEE802154_CAP_RX_TIMESTAMP : 0),
 
     .write = _write,
     .read = _read,
