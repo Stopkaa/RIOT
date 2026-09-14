@@ -32,8 +32,11 @@
 #define ED_RSSISCALE        (4U)    /**< RSSI scale for internal HW value */
 #define ED_RSSIOFFS         (-92)   /**< RSSI offset for internal HW value */
 
-/* Set timer period to 16 us (IEEE 802.15.4 symbol time) */
-#define TIMER_FREQ          (62500UL)
+/* Set timer period to 1 us */
+#define TIMER_FREQ          (1000000UL)
+
+/* IEEE 802.15.4 symbol time in microseconds for O-QPSK at 2.4 GHz */
+#define SYMBOL_TIME_US      (16U)
 
 #define TX_POWER_MIN        (-40)                               /* in dBm */
 #define TX_POWER_MAX        ((int)RADIO_TXPOWER_TXPOWER_Max)    /* in dBm */
@@ -400,13 +403,13 @@ static void _set_txpower(int16_t txpower)
 
 static void _set_ifs_timer(bool lifs)
 {
-    uint8_t timeout;
+    uint32_t timeout;
     cfg.ifs = true;
     if (lifs) {
-        timeout = IEEE802154_LIFS_SYMS;
+        timeout = IEEE802154_LIFS_SYMS * SYMBOL_TIME_US;
     }
     else {
-        timeout = IEEE802154_SIFS_SYMS;
+        timeout = IEEE802154_SIFS_SYMS * SYMBOL_TIME_US;
     }
 
     timer_set(NRF802154_TIMER, MAC_TIMER_CHAN_IFS, timeout);
