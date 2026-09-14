@@ -31,6 +31,7 @@
 #include "log.h"
 #include "iolist.h"
 #include "byteorder.h"
+#include "macros/math.h"
 #include "net/eui64.h"
 #include "net/ieee802154.h"
 #include "net/ieee802154/radio.h"
@@ -52,6 +53,12 @@
 
 /* IRQ mask: RF (0-6), WAKE (8), TMR_IRQ (16-19), TMR_MSK (20-23) */
 #define KW41ZRF_IRQS    (0x00ff017fUL)
+
+/**
+ * Convert a duration in symbol to Event Timer ticks
+ */
+#define KW41ZRF_SYMS_TO_TICKS(syms) \
+    ((uint32_t)DIV_ROUND_UP((uint64_t)(syms) * KW41ZRF_TIMER_FREQ, (uint64_t)KW41ZRF_SYMBOL_RATE))
 
 static kw41zrf_t intern_dev;
 static const ieee802154_radio_ops_t kw41zrf_ops;
@@ -158,6 +165,9 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t size, ieee802154_rx_in
     if (info) {
         info->lqi = kw41zrf_get_lqi_value(&intern_dev);
         info->rssi = kw41zrf_get_rssi_value(&intern_dev);
+#if IS_USED(MODULE_IEEE802154_RX_TIMESTAMP)
+        info->timestamp = (uint64_t)kw41zrf_get_timestamp(&intern_dev) * KW41ZRF_TICK_NS;
+#endif
     }
 
     return pkt_len;
@@ -680,7 +690,7 @@ static uint32_t _isr_event_seq_tr(kw41zrf_t *dev, uint32_t irqsts,
         /* TX done, now waiting for ACK - START timer NOW */
         if (kw41zrf_ack_requested(dev)) {
             /* Set timeout from current time */
-            kw41zrf_timer_set(dev, &ZLL->T3CMP, IEEE802154_ACK_TIMEOUT_SYMS);
+            kw41zrf_timer_set(dev, &ZLL->T3CMP, KW41ZRF_SYMS_TO_TICKS(IEEE802154_ACK_TIMEOUT_SYMS));
             bit_set32(&ZLL->PHY_CTRL, ZLL_PHY_CTRL_TMR3CMP_EN_SHIFT);
 
             DEBUG("[kw41zrf] wait for RX ACK (timeout set)\n");
@@ -910,7 +920,8 @@ static const ieee802154_radio_ops_t kw41zrf_ops = {
             | IEEE802154_CAP_IRQ_CCA_DONE
             | IEEE802154_CAP_IRQ_ACK_TIMEOUT
             | IEEE802154_CAP_AUTO_ACK
-            | IEEE802154_CAP_SRC_ADDR_MATCH,
+            | IEEE802154_CAP_SRC_ADDR_MATCH
+            | (IS_USED(MODULE_IEEE802154_RX_TIMESTAMP) ? IEEE802154_CAP_RX_TIMESTAMP : 0),
     .write = _write,
     .read = _read,
     .request_on = _request_on,

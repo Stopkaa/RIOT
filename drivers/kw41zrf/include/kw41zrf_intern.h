@@ -111,6 +111,38 @@ typedef enum kw41zrf_timer_timebase {
 } kw41zrf_timer_timebase_t;
 
 /**
+ * @brief Event Timer time base
+ *
+ * Determines both the resolution of RX timestamps and the granularity of the
+ * sequence timeouts.
+ * 500 kHz ->  2 us,  33.554 s
+ * 250 kHz ->  4 us,  67.109 s
+ * 125 kHz ->  8 us, 134.218 s
+ * 62.5 kHz -> 16 us (one symbol), 268.436 s
+ * 31.25 kHz -> 32 us, 536.871 s
+ * 15.625 kHz -> 64 us, 1073.742 s
+ */
+#ifndef CONFIG_KW41ZRF_TIMEBASE
+#  define CONFIG_KW41ZRF_TIMEBASE  KW41ZRF_TIMEBASE_500000HZ
+#endif
+
+/**
+ * @brief Event Timer frequency in Hz
+ */
+#define KW41ZRF_TIMER_FREQ   (2000000UL >> CONFIG_KW41ZRF_TIMEBASE)
+
+/**
+ * @brief Symbol rate in HZ of O-QPSK at 2.4 GHz (16 us per symbol)
+ */
+#define KW41ZRF_SYMBOL_RATE  (62500UL)
+
+/**
+ * @brief Nanoseconds per Event Timer tick
+ */
+#define KW41ZRF_TICK_NS      (NS_PER_SEC / KW41ZRF_TIMER_FREQ)
+
+
+/**
  * @brief   Mask all transceiver interrupts
  */
 static inline void kw41zrf_mask_irqs(void)
