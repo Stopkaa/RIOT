@@ -70,7 +70,7 @@
  *   retries or PREPARE otherwise.
  *
  * The events that trigger state machine changes are defined in
- * @ref ieee802154_fsm_state_cb_t
+ * @ref ieee802154_fsm_ev_t
  *
  * The following events are valid for each state:
  *
@@ -219,7 +219,6 @@ struct ieee802154_submac {
     int32_t fsm_context_res;            /**< Result of the proceeded fsm action */
     ieee802154_phy_mode_t phy_mode;     /**< IEEE 802.15.4 PHY mode */
     const iolist_t *psdu;               /**< stores the current PSDU */
-    uint8_t sync_ack;
 };
 
 /**
@@ -427,33 +426,6 @@ static inline int ieee802154_read_frame(ieee802154_submac_t *submac, void *buf,
 }
 
 /**
- * @brief Set the SubMAC to IDLE state.
- *
- * Frames won't be received in this state. However, it's still possible to send
- * frames.
- *
- * @param[in] submac pointer to the SubMAC descriptor
- *
- * @return success or error code.
- * @retval 0 on success
- * @retval -EBUSY if the SubMAC is currently busy
- */
-int ieee802154_set_idle(ieee802154_submac_t *submac);
-
-/**
- * @brief Set the SubMAC to RX state
- *
- * During this state the SubMAC accepts incoming frames.
- *
- * @param[in] submac pointer to the SubMAC descriptor
- *
- * @return success or error code.
- * @retval 0 on success
- * @retval -EBUSY if the SubMAC is currently busy
- */
-int ieee802154_set_rx(ieee802154_submac_t *submac);
-
-/**
  * @brief Check whether the SubMAC is in RX state
  *
  * @param[in] submac pointer to the SubMAC descriptor
@@ -514,7 +486,8 @@ extern void ieee802154_submac_ack_timer_cancel(ieee802154_submac_t *submac);
  * @param[in] submac pointer to the SubMAC descriptor
  * @param[in] ev the event to be processed
  *
- * @return  Next FSM event
+ * @return 0 on success
+ * @return negative errno on error
  */
 int ieee802154_submac_process_ev(ieee802154_submac_t *submac, ieee802154_fsm_ev_t ev);
 
@@ -562,6 +535,39 @@ static inline void ieee802154_submac_crc_error_cb(ieee802154_submac_t *submac)
 static inline void ieee802154_submac_tx_done_cb(ieee802154_submac_t *submac)
 {
     ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_TX_DONE);
+}
+
+/**
+ * @brief Set the SubMAC to IDLE state.
+ *
+ * Frames won't be received in this state. However, it's still possible to send
+ * frames.
+ *
+ * @param[in] submac pointer to the SubMAC descriptor
+ *
+ * @return success or error code.
+ * @retval 0 on success
+ * @retval -EBUSY if the SubMAC is currently busy
+ */
+static inline int ieee802154_set_idle(ieee802154_submac_t *submac)
+{
+    return ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_IDLE);
+}
+
+/**
+ * @brief Set the SubMAC to RX state
+ *
+ * During this state the SubMAC accepts incoming frames.
+ *
+ * @param[in] submac pointer to the SubMAC descriptor
+ *
+ * @return success or error code.
+ * @retval 0 on success
+ * @retval -EBUSY if the SubMAC is currently busy
+ */
+static inline int ieee802154_set_rx(ieee802154_submac_t *submac)
+{
+    return ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_RX_ON);
 }
 
 #ifdef __cplusplus
