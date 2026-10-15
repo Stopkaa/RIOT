@@ -101,11 +101,11 @@
  *
  * @author       José I. Alamos <jose.alamos@haw-hamburg.de>
  */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "assert.h"
@@ -181,8 +181,7 @@ typedef enum {
  * @brief Internal SubMAC FSM state
  */
 typedef ieee802154_submac_fsm_return_t (*ieee802154_fsm_state_cb_t)(ieee802154_submac_t *submac,
-                                                                      ieee802154_fsm_ev_t ev,
-                                                                      void* ctx);
+                                                                      ieee802154_fsm_ev_t ev);
 
 /**
  * @brief Internal SubMAC FSM
@@ -214,6 +213,7 @@ struct ieee802154_submac {
     uint16_t ack_timeout_us;            /**< ACK timeout in µs */
     uint16_t panid;                     /**< IEEE 802.15.4 PAN ID */
     uint16_t channel_num;               /**< IEEE 802.15.4 channel number */
+    uint8_t tx_ftype;                   /**< Frame Control Field of the lastest transmitted frame */
     int8_t tx_pow;                      /**< Transmission power (in dBm) */
     ieee802154_fsm_t fsm;               /**< FSM of the SubMAC */
     int32_t fsm_context_res;            /**< Result of the proceeded fsm action */
@@ -516,8 +516,7 @@ extern void ieee802154_submac_ack_timer_cancel(ieee802154_submac_t *submac);
  *
  * @return  Next FSM event
  */
-int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
-                                 ieee802154_fsm_ev_t ev, void *ctx);
+int ieee802154_submac_process_ev(ieee802154_submac_t *submac, ieee802154_fsm_ev_t ev);
 
 /**
  * @brief Indicate the SubMAC that the ACK timeout fired.
@@ -532,7 +531,7 @@ int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
  */
 static inline void ieee802154_submac_ack_timeout_fired(ieee802154_submac_t *submac)
 {
-    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_ACK_TIMEOUT, NULL);
+    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_ACK_TIMEOUT);
 }
 
 /**
@@ -542,7 +541,7 @@ static inline void ieee802154_submac_ack_timeout_fired(ieee802154_submac_t *subm
  */
 static inline void ieee802154_submac_rx_done_cb(ieee802154_submac_t *submac)
 {
-    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_RX_DONE, NULL);
+    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_RX_DONE);
 }
 
 /**
@@ -552,7 +551,7 @@ static inline void ieee802154_submac_rx_done_cb(ieee802154_submac_t *submac)
  */
 static inline void ieee802154_submac_crc_error_cb(ieee802154_submac_t *submac)
 {
-    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_CRC_ERROR, NULL);
+    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_CRC_ERROR);
 }
 
 /**
@@ -562,7 +561,7 @@ static inline void ieee802154_submac_crc_error_cb(ieee802154_submac_t *submac)
  */
 static inline void ieee802154_submac_tx_done_cb(ieee802154_submac_t *submac)
 {
-    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_TX_DONE, NULL);
+    ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_TX_DONE);
 }
 
 #ifdef __cplusplus
