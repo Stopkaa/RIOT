@@ -239,6 +239,9 @@ endif
 ifneq (,$(filter ztimer_xtimer_compat,$(USEMODULE)))
   FILTER += xtimer
 endif
+ifneq (,$(filter glossy,$(USEMODULE)))
+  DIRS += net/link_layer/ieee802154/glossy
+endif
 
 DIRS += $(dir $(wildcard $(addsuffix /Makefile, $(filter-out $(FILTER), $(USEMODULE)))))
 
