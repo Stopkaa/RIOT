@@ -1,0 +1,4 @@
+USEMODULE += event
+USEMODULE += iolist
+USEMODULE += ieee802154
+USEMODULE += ztimer_msec
