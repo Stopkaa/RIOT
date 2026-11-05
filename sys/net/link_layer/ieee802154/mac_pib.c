@@ -317,11 +317,6 @@ static inline const uint8_t *ieee802154_pib_ptr_const_from_mac(const ieee802154_
     return (const uint8_t *)((const uint8_t *)p + (ptrdiff_t)e->offset);
 }
 
-static inline bool _pib_can_write(ieee802154_pib_access_t a)
-{
-    return (a == IEEE802154_PIB_ACC_RW);
-}
-
 void ieee802154_mac_mlme_set(ieee802154_mac_t *mac,
                              ieee802154_pib_attr_t attr,
                              const ieee802154_pib_value_t *in)

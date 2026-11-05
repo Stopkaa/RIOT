@@ -137,10 +137,7 @@ int ieee802154_mac_enqueue_data_request(ieee802154_mac_t *mac,
                                         uint16_t *dst_panid,
                                         const void *dst_addr);
 /**
- * @brief Enqueue an association request command.
- */
-/**
- * @brief Enequeu a beacon request command.
+ * @brief Enqueue a beacon request command.
  */
 int ieee802154_mac_enqueue_beacon_request(ieee802154_mac_t *mac);
 
