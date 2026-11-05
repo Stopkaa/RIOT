@@ -199,6 +199,17 @@ typedef enum {
 } ieee802154_submac_fsm_return_t;
 
 /**
+ * @brief Per-frame transmission options of the SubMAC
+ *
+ * @see ieee802154_send_ext
+ */
+typedef enum {
+    IEEE802154_SUBMAC_TX_OPT_NONE        = 0,       /**< default transmission */
+    IEEE802154_SUBMAC_TX_OPT_NO_CSMA_CA  = BIT0,    /**< transmit without CSMA-CA/CCA */
+    IEEE802154_SUBMAC_TX_OPT_NO_RETRANS  = BIT1,    /**< do not retransmit on missing ACK */
+} ieee802154_submac_tx_opts_t;
+
+/**
  * @brief Internal SubMAC FSM state
  */
 typedef ieee802154_submac_fsm_return_t (*ieee802154_fsm_state_cb_t)(ieee802154_submac_t *submac,
@@ -240,6 +251,8 @@ struct ieee802154_submac {
     ieee802154_phy_mode_t phy_mode;     /**< IEEE 802.15.4 PHY mode */
     const iolist_t *psdu;               /**< stores the current PSDU */
     uint8_t tx_ftype;                   /**< frame type of the current TX frame */
+    uint8_t tx_opts;                    /**< options of the current TX frame
+                                             (@ref ieee802154_submac_tx_opts_t) */
 #if IS_USED(MODULE_IEEE802154_SUBMAC_SOFT_ACK)
     bool ack_frame_pending;             /**< set Frame Pending bit in soft ACKs */
 #endif
@@ -261,6 +274,23 @@ struct ieee802154_submac {
  *         @ref ieee802154_submac_cb_t::tx_done
  */
 int ieee802154_send(ieee802154_submac_t *submac, const iolist_t *iolist);
+
+/**
+ * @brief Transmit an IEEE 802.15.4 PSDU with transmission options
+ *
+ * Same as @ref ieee802154_send, but allows to skip CSMA-CA and/or
+ * retransmissions for this frame only, e.g. for the time-critical
+ * transmission of an indirect frame right after a Data Request command.
+ *
+ * @param[in] submac    pointer to the SubMAC descriptor
+ * @param[in] iolist    pointer to the PSDU frame (without FCS)
+ * @param[in] tx_opts   bitmask of @ref ieee802154_submac_tx_opts_t
+ *
+ * @return 0 on success
+ * @return -EBUSY if the SubMAC is busy (see @ref ieee802154_send)
+ */
+int ieee802154_send_ext(ieee802154_submac_t *submac, const iolist_t *iolist,
+                        uint8_t tx_opts);
 
 /**
  * @brief Set the IEEE 802.15.4 short address
