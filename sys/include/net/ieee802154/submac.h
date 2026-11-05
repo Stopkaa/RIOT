@@ -240,6 +240,9 @@ struct ieee802154_submac {
     ieee802154_phy_mode_t phy_mode;     /**< IEEE 802.15.4 PHY mode */
     const iolist_t *psdu;               /**< stores the current PSDU */
     uint8_t tx_ftype;                   /**< frame type of the current TX frame */
+#if IS_USED(MODULE_IEEE802154_SUBMAC_SOFT_ACK)
+    bool ack_frame_pending;             /**< set Frame Pending bit in soft ACKs */
+#endif
 };
 
 /**
@@ -593,6 +596,31 @@ static inline int ieee802154_set_rx(ieee802154_submac_t *submac)
 {
     return ieee802154_submac_process_ev(submac, IEEE802154_FSM_EV_REQUEST_SET_RX_ON);
 }
+
+/**
+ * @brief Configure the source address match of the SubMAC
+ *
+ * The source address match is used by a coordinator to signal pending
+ * indirect frames to a device by setting the Frame Pending bit in the
+ * ACK of a Data Request command.
+ *
+ * If the radio sends ACK frames by itself, the command is forwarded to the
+ * radio (see @ref ieee802154_radio_config_src_address_match). If the SubMAC
+ * sends ACK frames in software (`ieee802154_submac_soft_ack`), only
+ * @ref IEEE802154_SRC_MATCH_EN is supported, which sets the Frame Pending bit
+ * in all ACK frames.
+ *
+ * @param[in] submac    pointer to the SubMAC descriptor
+ * @param[in] cmd       source address match command
+ * @param[in] value     value associated to @p cmd
+ *
+ * @retval 0            on success
+ * @retval -ENOTSUP     if @p cmd is not supported
+ * @retval -EINVAL      if @p value is invalid
+ */
+int ieee802154_submac_config_src_address_match(ieee802154_submac_t *submac,
+                                               ieee802154_src_match_t cmd,
+                                               const void *value);
 
 #ifdef __cplusplus
 }

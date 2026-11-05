@@ -409,8 +409,12 @@ static ieee802154_submac_fsm_return_t _handle_fsm_ev_request_tx(ieee802154_subma
 static ieee802154_submac_fsm_return_t _handle_fsm_ev_tx_ack(ieee802154_submac_t *submac,
                                                             uint8_t seq_num)
 {
-    /* TODO: set pending bit accordingly, currently always 0 */
     uint8_t ack[] = { IEEE802154_FCF_TYPE_ACK, 0x00,  seq_num };
+#if IS_USED(MODULE_IEEE802154_SUBMAC_SOFT_ACK)
+    if (submac->ack_frame_pending) {
+        ack[0] |= IEEE802154_FCF_FRAME_PEND;
+    }
+#endif
     iolist_t iolist = {
         .iol_base = ack,
         .iol_len = sizeof(ack),
@@ -820,6 +824,34 @@ int ieee802154_submac_process_ev(ieee802154_submac_t *submac,
     return res;
 }
 
+int ieee802154_submac_config_src_address_match(ieee802154_submac_t *submac,
+                                               ieee802154_src_match_t cmd,
+                                               const void *value)
+{
+    ieee802154_dev_t *dev = &submac->dev;
+
+    if (_does_send_ack(dev)) {
+        if (cmd != IEEE802154_SRC_MATCH_EN &&
+            !ieee802154_radio_has_capability(dev, IEEE802154_CAP_SRC_ADDR_MATCH)) {
+            return -ENOTSUP;
+        }
+        return ieee802154_radio_config_src_address_match(dev, cmd, value);
+    }
+
+#if IS_USED(MODULE_IEEE802154_SUBMAC_SOFT_ACK)
+    if (cmd != IEEE802154_SRC_MATCH_EN) {
+        return -ENOTSUP;
+    }
+    if (value == NULL) {
+        return -EINVAL;
+    }
+    submac->ack_frame_pending = *((const bool *)value);
+    return 0;
+#else
+    return -ENOTSUP;
+#endif
+}
+
 int ieee802154_send(ieee802154_submac_t *submac, const iolist_t *iolist)
 {
     if (iolist == NULL) {
@@ -1065,6 +1097,9 @@ int ieee802154_submac_init(ieee802154_submac_t *submac, const network_uint16_t *
     memcpy(&submac->ext_addr, ext_addr, sizeof(eui64_t));
     memcpy(&submac->short_addr, short_addr, sizeof(network_uint16_t));
     submac->panid = CONFIG_IEEE802154_DEFAULT_PANID;
+#if IS_USED(MODULE_IEEE802154_SUBMAC_SOFT_ACK)
+    submac->ack_frame_pending = false;
+#endif
 
     submac->tx_pow = CONFIG_IEEE802154_DEFAULT_TXPOWER;
 
