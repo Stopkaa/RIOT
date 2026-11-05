@@ -126,12 +126,10 @@ static bool _l2filter(uint8_t *mhr)
         }
     }
 
-    /* some MACCMD dont have a dst_addr when in same PAN */
+    /* frames to the PAN coordinator (e.g. MAC commands) may omit the
+     * destination address, accept them if they come from our PAN */
     if (nrf802154_is_coordinator && (dst_addr_len == 0)) {
-    if (memcmp(&nrf802154_pan_id, src_pan.u8, 2) == 0) {
-        return true;
-    }
-    return false;
+        return memcmp(&nrf802154_pan_id, src_pan.u8, 2) == 0;
     }
 
     /* filter PAN ID */
