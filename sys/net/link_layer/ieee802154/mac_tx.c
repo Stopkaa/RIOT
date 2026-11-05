@@ -35,7 +35,8 @@ static void _tx_finish(ieee802154_mac_t *mac,
     }
 
     bool request_rx = false;
-    bool frame_pending = info && info->frame_pending;
+    (void)info;
+    bool frame_pending = (status == TX_STATUS_FRAME_PENDING);
 
     bool is_poll = (d->type == IEEE802154_FCF_TYPE_MACCMD) &&
                    d->iol_mhr.iol_next &&
