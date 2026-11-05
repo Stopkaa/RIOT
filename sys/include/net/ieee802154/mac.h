@@ -60,27 +60,6 @@ extern "C" {
 #define IEEE802154_MAC_TX_INDIRECTQ_SIZE     CONFIG_IEEE802154_MAC_TX_INDIRECTQ_SIZE
 #endif
 
-#ifndef CONFIG_IEEE802154_MAC_INDIRECT_DIAG
-#define CONFIG_IEEE802154_MAC_INDIRECT_DIAG  0
-#endif
-
-#if CONFIG_IEEE802154_MAC_INDIRECT_DIAG
-/**
- * @brief Dump recorded indirect queue diagnostic events.
- */
-void ieee802154_mac_indirect_diag_dump(void);
-
-/**
- * @brief Dump up to @p max_events recorded indirect queue diagnostic events.
- */
-void ieee802154_mac_indirect_diag_dump_max(uint16_t max_events);
-
-/**
- * @brief Clear recorded indirect queue diagnostic events.
- */
-void ieee802154_mac_indirect_diag_reset(void);
-#endif
-
 #ifndef CONFIG_IEEE802154_MAC_ASSOC_TABLE_SIZE
 #define CONFIG_IEEE802154_MAC_ASSOC_TABLE_SIZE      (IEEE802154_MAC_TX_INDIRECTQ_SIZE)
 #endif
@@ -127,9 +106,6 @@ void ieee802154_mac_indirect_diag_reset(void);
 #ifndef IEEE802154_MAC_RX_RETRY_MAX
 #define IEEE802154_MAC_RX_RETRY_MAX   CONFIG_IEEE802154_MAC_RX_RETRY_MAX
 #endif
-
-
-
 
 /**
  * @brief IEEE 802.15.4 extended adress
@@ -610,6 +586,13 @@ void ieee802154_mac_tick(ieee802154_mac_t *mac);
  */
 void ieee802154_mac_scan_timer_process(ieee802154_mac_t *mac);
 
+/**
+ * @brief Switch the radio to RX in thread context.
+ *
+ * Has to be called from thread context when
+ * @ref ieee802154_mac_cbs_t::rx_request is called. If the SubMAC is busy,
+ * the request is retried up to @ref IEEE802154_MAC_RX_RETRY_MAX times.
+ */
 void ieee802154_mac_rx_request_process(ieee802154_mac_t *mac);
 
 /**
