@@ -38,6 +38,14 @@ extern void auto_init_event_thread(void);
 #include "bhp/event.h"
 #endif
 
+#ifdef MODULE_AT86RF2XX
+#include "at86rf2xx.h"
+#include "at86rf2xx_params.h"
+#include "event/thread.h"
+#define AT86RF2XX_NUM   ARRAY_SIZE(at86rf2xx_params)
+static at86rf2xx_bhp_ev_t at86rf2xx_bhp[AT86RF2XX_NUM];
+#endif
+
 #ifdef MODULE_KW2XRF
 #include "kw2xrf.h"
 #include "kw2xrf_params.h"
@@ -86,6 +94,15 @@ int ieee802154_mac_test_init_devs(ieee802154_dev_t *radio,
     nrf802154_init();
     *dev_type = IEEE802154_DEV_TYPE_NRF802154;
     return 0;
+#endif
+
+#ifdef MODULE_AT86RF2XX
+    if (AT86RF2XX_NUM > 0) {
+        at86rf2xx_init_event(&at86rf2xx_bhp[0], &at86rf2xx_params[0], radio,
+                             EVENT_PRIO_HIGHEST);
+        *dev_type = IEEE802154_DEV_TYPE_AT86RF2XX;
+        return 0;
+    }
 #endif
 
 #ifdef MODULE_KW2XRF
