@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: LGPL-2.1-only
  */
 
+#include <errno.h>
 #include <string.h>
 
 #include "byteorder.h"
@@ -276,63 +277,57 @@ static bool _assoc_ext_matches_short_locked(const ieee802154_mac_t *mac,
            (mac->assoc_table[slot].short_addr.u16 == short_addr.u16);
 }
 
+static int _fp_update_addr(ieee802154_mac_t *mac, ieee802154_addr_mode_t dst_mode,
+                           const void *dst_addr, bool pending)
+{
+    int res = -ENOTSUP;
+
+    if (dst_mode == IEEE802154_ADDR_MODE_SHORT) {
+        res = ieee802154_submac_config_src_address_match(&mac->submac,
+            pending ? IEEE802154_SRC_MATCH_SHORT_ADD : IEEE802154_SRC_MATCH_SHORT_CLEAR,
+            dst_addr);
+    }
+    else if (dst_mode == IEEE802154_ADDR_MODE_EXTENDED) {
+        const ieee802154_ext_addr_t *ext = dst_addr;
+
+        res = ieee802154_submac_config_src_address_match(&mac->submac,
+            pending ? IEEE802154_SRC_MATCH_EXT_ADD : IEEE802154_SRC_MATCH_EXT_CLEAR,
+            ext);
+        if (res == -ENOTSUP) {
+            return res;
+        }
+        /* the device might poll with its short address */
+        int slot = _assoc_find_ext_locked(mac, ext);
+        if (slot >= 0) {
+            (void)ieee802154_submac_config_src_address_match(&mac->submac,
+                pending ? IEEE802154_SRC_MATCH_SHORT_ADD : IEEE802154_SRC_MATCH_SHORT_CLEAR,
+                &mac->assoc_table[slot].short_addr);
+        }
+    }
+    return res;
+}
+
 void ieee802154_mac_indirect_fp_update(ieee802154_mac_t *mac,
                                        ieee802154_addr_mode_t dst_mode,
                                        const void *dst_addr,
                                        bool pending)
 {
-#ifdef IEEE802154_MAC_INDIRECT_ENABLE
-#  ifdef IEEE802154_MAC_HAS_SRC_ADDR_MATCH
     bool still_pending = pending;
 
     if (!still_pending && dst_addr) {
-        still_pending = ieee802154_indirectq_has_addr(&mac->indirect_q,
-                                                      dst_mode,
-                                                      dst_addr);
+        still_pending = ieee802154_indirectq_has_addr(&mac->indirect_q, dst_mode, dst_addr);
     }
-    if (dst_mode == IEEE802154_ADDR_MODE_SHORT) {
-        if (dst_addr) {
-            const network_uint16_t *short_addr = dst_addr;
 
-            ieee802154_submac_config_src_address_match(&mac->submac,
-                still_pending ? IEEE802154_SRC_MATCH_SHORT_ADD
-                              : IEEE802154_SRC_MATCH_SHORT_CLEAR,
-                short_addr);
-        }
+    if (dst_addr &&
+        _fp_update_addr(mac, dst_mode, dst_addr, still_pending) != -ENOTSUP) {
+        return;
     }
-    else if (dst_mode == IEEE802154_ADDR_MODE_EXTENDED) {
-        const ieee802154_ext_addr_t *ext = dst_addr;
 
-        if (ext) {
-            ieee802154_submac_config_src_address_match(&mac->submac,
-                still_pending ? IEEE802154_SRC_MATCH_EXT_ADD
-                              : IEEE802154_SRC_MATCH_EXT_CLEAR,
-                ext);
-
-            int slot = _assoc_find_ext_locked(mac, ext);
-            if (slot >= 0) {
-                ieee802154_submac_config_src_address_match(&mac->submac,
-                    still_pending ? IEEE802154_SRC_MATCH_SHORT_ADD
-                                  : IEEE802154_SRC_MATCH_SHORT_CLEAR,
-                    &mac->assoc_table[slot].short_addr);
-            }
-        }
-    }
-#  else
-    (void) dst_mode;
-    (void) dst_addr;
-    bool any_pending = pending;
-    if (!pending) {
-        any_pending = !ieee802154_indirectq_empty(&mac->indirect_q);
-    }
-    ieee802154_submac_config_src_address_match(&mac->submac, IEEE802154_SRC_MATCH_EN, &any_pending);
-#  endif
-#else
-    (void)mac;
-    (void)dst_mode;
-    (void)dst_addr;
-    (void)pending;
-#endif
+    /* No per-address source address match available: set the Frame Pending
+     * bit in all ACK frames as long as any indirect frame is queued. */
+    bool any_pending = pending || !ieee802154_indirectq_empty(&mac->indirect_q);
+    ieee802154_submac_config_src_address_match(&mac->submac, IEEE802154_SRC_MATCH_EN,
+                                               &any_pending);
 }
 
 void ieee802154_mac_handle_indirectq_auto_free(ieee802154_mac_t *mac,
